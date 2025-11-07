@@ -2,6 +2,8 @@
 
 import React, { useState } from 'react';
 import DeckPlayer from '../../../components/DeckPlayer/DeckPlayer';
+import ContextualBreadcrumb from '../../../components/admin/contextual-breadcrumb';
+import Link from 'next/link';
 
 export default function DemoPage() {
   const [campaignName, setCampaignName] = useState('Demo Campaign');
@@ -78,42 +80,76 @@ export default function DemoPage() {
   }
 
   return (
-    <div style={{ padding: 24 }}>
-      <h2>Campaign Demo</h2>
-
-      <div style={{ marginBottom: 12 }}>
-        <label style={{ display: 'block' }}>Campaign name</label>
-        <input value={campaignName} onChange={(e) => setCampaignName(e.target.value)} />
+    <div className="max-w-7xl mx-auto px-4 py-8">
+      <ContextualBreadcrumb />
+      
+      <div className="mv-card p-6 mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h1 className="mv-heading-lg mb-2">◇ Campaign Demo</h1>
+            <p className="mv-text-muted">Original campaign creation and management workflow</p>
+          </div>
+          <div className="flex space-x-2">
+            <Link href="/campaigns/dashboard" className="mv-button-secondary">
+              Dashboard View
+            </Link>
+            <Link href="/admin/demo-integration" className="mv-button-secondary">
+              Demo Hub
+            </Link>
+          </div>
+        </div>
       </div>
+      
+      <div className="mv-card p-6">
+        <h2 className="mv-heading-md mb-6">Campaign Management</h2>
 
-      <div style={{ marginBottom: 12 }}>
-        <label style={{ display: 'block' }}>Sponsor ID</label>
-        <input value={sponsorId} onChange={(e) => setSponsorId(e.target.value)} />
-      </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <div>
+            <label className="block text-sm font-medium mb-2">Campaign Name</label>
+            <input 
+              value={campaignName} 
+              onChange={(e) => setCampaignName(e.target.value)}
+              className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-2">Sponsor ID</label>
+            <input 
+              value={sponsorId} 
+              onChange={(e) => setSponsorId(e.target.value)}
+              className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white"
+            />
+          </div>
+        </div>
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-        <button onClick={createCampaign}>Create Campaign</button>
-        <button onClick={activateCampaign} disabled={!campaign}>Activate</button>
-        <button onClick={createStream} disabled={!campaign}>Create Stream</button>
-        <button onClick={fetchCampaigns}>Refresh Campaigns</button>
-        <button onClick={() => campaign && fetchStreamsForCampaign(campaign.id)} disabled={!campaign}>Load Streams for Campaign</button>
-        <button onClick={addPlacement} disabled={!session}>Add Placement</button>
-      </div>
+        <div className="flex flex-wrap gap-2 mb-6">
+          <button onClick={createCampaign} className="mv-button">Create Campaign</button>
+          <button onClick={activateCampaign} disabled={!campaign} className="mv-button-secondary">Activate</button>
+          <button onClick={createStream} disabled={!campaign} className="mv-button-secondary">Create Stream</button>
+          <button onClick={fetchCampaigns} className="mv-button-secondary">Refresh</button>
+          <button onClick={() => campaign && fetchStreamsForCampaign(campaign.id)} disabled={!campaign} className="mv-button-secondary">Load Streams</button>
+          <button onClick={addPlacement} disabled={!session} className="mv-button-secondary">Add Placement</button>
+        </div>
 
-      <div style={{ marginBottom: 12 }}>
-        <pre>{JSON.stringify({ campaign, session, placements, campaignsList, sessionsList }, null, 2)}</pre>
-      </div>
+        <div className="bg-black/20 rounded-xl p-4 mb-6">
+          <h3 className="font-semibold mb-3">Campaign Data</h3>
+          <pre className="text-xs mv-text-muted overflow-auto">{JSON.stringify({ campaign, session, placements, campaignsList, sessionsList }, null, 2)}</pre>
+        </div>
 
-      <div style={{ width: '100%', height: 480, background: '#000' }}>
-        {playbackUrl ? (
-          <DeckPlayer
-            playbackUrl={playbackUrl}
-            timeline={placements.map((p) => ({ id: p.id, startMs: p.startTime * 1000, durationMs: p.duration * 1000, cardCid: p.assetCid }))}
-            onImpression={(i) => console.log('impression', i)}
-          />
-        ) : (
-          <div style={{ color: '#fff', padding: 20 }}>No stream created yet</div>
-        )}
+        <div className="w-full h-96 bg-black rounded-xl overflow-hidden">
+          {playbackUrl ? (
+            <DeckPlayer
+              playbackUrl={playbackUrl}
+              timeline={placements.map((p) => ({ id: p.id, startMs: p.startTime * 1000, durationMs: p.duration * 1000, cardCid: p.assetCid }))}
+              onImpression={(i) => console.log('impression', i)}
+            />
+          ) : (
+            <div className="text-white p-8 text-center">
+              <div className="text-4xl mb-4">🎬</div>
+              <p className="mv-text-muted">No stream created yet</p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

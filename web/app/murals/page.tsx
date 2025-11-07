@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { MuralUtils } from '../../utils/murals/assembly';
 import Pagination from '../../components/Pagination';
 import { enhancedDataManager } from '../../utils/storage/enhanced-data-store';
+import ContextualBreadcrumb from '../../components/admin/contextual-breadcrumb';
 
 const mockMural = {
   id: 'mural_superhero_ego',
@@ -117,9 +118,22 @@ export default function Murals() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
+      <ContextualBreadcrumb />
         <div className="text-center mb-12 mv-fade-in">
-          <h1 className="mv-heading-xl mb-4">◈ {currentMural.title} ◈</h1>
-          <p className="mv-text-muted text-lg mb-6">{currentMural.description}</p>
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex-1">
+              <h1 className="mv-heading-xl mb-4">◈ {currentMural.title} ◈</h1>
+              <p className="mv-text-muted text-lg">{currentMural.description}</p>
+            </div>
+            <div className="flex space-x-2">
+              <Link href="/admin/demo-integration" className="mv-button-secondary">
+                Demo Hub
+              </Link>
+              <Link href="/admin" className="mv-button-secondary">
+                Admin
+              </Link>
+            </div>
+          </div>
           
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
             <div className="mv-card p-4 text-center">

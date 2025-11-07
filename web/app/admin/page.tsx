@@ -3,6 +3,7 @@
 /**
  * Admin Dashboard - Main Overview Page
  * Central hub for content management and platform administration
+ * Enhanced with integrated demo functionality
  */
 
 import React, { useState, useEffect } from 'react';
@@ -10,6 +11,10 @@ import { useRBAC } from '../auth/rbac-provider';
 import Link from 'next/link';
 import { enhancedDataManager } from '../../utils/storage/enhanced-data-store';
 import ContentCurationPanel from '../../components/admin/content-curation-panel';
+import CampaignManagementWidget from '../../components/admin/campaign-management-widget';
+import MuralAssemblyWidget from '../../components/admin/mural-assembly-widget';
+import TimelineEditorEmbedded from '../../components/admin/timeline-editor-embedded';
+import DemoNavigationPanel from '../../components/admin/demo-navigation-panel';
 
 interface DashboardStat {
   name: string;
@@ -22,6 +27,7 @@ interface DashboardStat {
 
 
 const quickActions = [
+  { name: 'Demo Integration', href: '/admin/demo-integration', icon: '🎯', description: 'Comprehensive demo functionality hub' },
   { name: 'Upload Media', href: '/admin/upload', icon: '⬆️', description: 'Upload audio, video, and visual assets' },
   { name: 'View Assets', href: '/admin/assets', icon: '📋', description: 'Review and manage all assets' },
   { name: 'Manage Animations', href: '/admin/animations', icon: '🎬', description: 'Review and curate animation submissions' },
@@ -29,7 +35,6 @@ const quickActions = [
   { name: 'Manage Roles', href: '/admin/rbac', icon: '👥', description: 'Assign and manage user roles' },
   { name: 'Campaign Setup', href: '/admin/campaigns', icon: '📢', description: 'Create new advertising campaigns' },
   { name: 'Mint Approval', href: '/admin/mint-queue', icon: '🎯', description: 'Approve pending mint requests' },
-  { name: 'Sponsor Management', href: '/admin/sponsors', icon: '💼', description: 'Manage platform sponsors and partnerships' },
 ];
 
 export default function AdminDashboard() {
@@ -190,6 +195,22 @@ export default function AdminDashboard() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Navigation & Demo Integration */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-8">
+        <div className="xl:col-span-2 space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <CampaignManagementWidget />
+            <MuralAssemblyWidget />
+          </div>
+        </div>
+        <DemoNavigationPanel />
+      </div>
+
+      {/* Timeline Editor - Full Width */}
+      <div className="mb-8">
+        <TimelineEditorEmbedded compact={true} />
       </div>
 
       {/* Content Curation Panel */}
