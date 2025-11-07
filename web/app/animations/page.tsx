@@ -1,11 +1,46 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+
+// HLS Video Player Component
+function HLSVideoPlayer({ src, poster, className }: { src: string; poster?: string; className?: string }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    
+    if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      video.src = src;
+    } else {
+      import('hls.js').then(({ default: Hls }) => {
+        if (Hls.isSupported()) {
+          const hls = new Hls();
+          hls.loadSource(src);
+          hls.attachMedia(video);
+        }
+      }).catch(() => {
+        video.src = src;
+      });
+    }
+  }, [src]);
+  
+  return (
+    <video
+      ref={videoRef}
+      controls
+      className={className}
+      poster={poster}
+    >
+      Your browser does not support video playback.
+    </video>
+  );
+}
 import Link from 'next/link';
 import MediaRenderer from '../../components/media/media-renderer';
 import HolographicVideoPlayer from '../../components/HolographicVideoPlayer';
 import Breadcrumb from '../../components/Breadcrumb';
-import { dataManager } from '../../utils/storage/data-store';
+import { enhancedDataManager } from '../../utils/storage/enhanced-data-store';
 import Pagination from '../../components/shared/pagination';
 
 interface Asset {
@@ -27,6 +62,9 @@ interface Asset {
       label?: string;
     }>;
     isrc?: string;
+    livepeer_playback_url?: string;
+    livepeer_thumbnail_url?: string;
+    upload_method?: string;
   };
   creator?: string;
   uploadedAt?: string;
@@ -56,12 +94,12 @@ export default function Animations() {
   }, []);
   const loadAssets = async () => {
     try {
-      const data = await dataManager.getData('assets');
+      const data = await enhancedDataManager.getData('assets');
       // store raw assets locally
-      setAssets(data || []);
+      setAssets(data as Asset[] || []);
 
       // pick a featured approved animation to show by default
-      const firstApproved = (data || []).find((asset: Asset) => {
+      const firstApproved = (data as Asset[] || []).find((asset: Asset) => {
         const isAnimation = asset.type === 'animation' || asset.type === 'video' || asset.mimeType?.startsWith('video/');
         return isAnimation && asset.status === 'approved';
       });
@@ -115,16 +153,24 @@ export default function Animations() {
                 </div>
               </div>
               
-              {/* 2.5D Holographic Video Player */}
-              <HolographicVideoPlayer
-                fileCid={selectedAsset.fileCid}
-                thumbnailCid={selectedAsset.thumbnailCid}
-                mimeType={selectedAsset.mimeType}
-                fileName={selectedAsset.fileName}
-                renditions={(selectedAsset.metadata as any)?.renditions}
-                title={selectedAsset.name}
-                className="w-full h-96 md:h-[500px] lg:h-[600px]"
-              />
+              {/* Video Player */}
+              {selectedAsset.metadata?.livepeer_playback_url ? (
+                <HLSVideoPlayer
+                  src={selectedAsset.metadata.livepeer_playback_url}
+                  poster={selectedAsset.metadata?.livepeer_thumbnail_url}
+                  className="w-full h-96 md:h-[500px] lg:h-[600px] rounded-lg"
+                />
+              ) : (
+                <HolographicVideoPlayer
+                  fileCid={selectedAsset.fileCid}
+                  thumbnailCid={selectedAsset.thumbnailCid}
+                  mimeType={selectedAsset.mimeType}
+                  fileName={selectedAsset.fileName}
+                  renditions={(selectedAsset.metadata as any)?.renditions}
+                  title={selectedAsset.name}
+                  className="w-full h-96 md:h-[500px] lg:h-[600px]"
+                />
+              )}
             </div>
           </div>
         )}
@@ -153,13 +199,21 @@ export default function Animations() {
                 >
                   {/* Thumbnail */}
                   <div className="aspect-video mb-4">
-                    <MediaRenderer
-                      fileCid={asset.fileCid}
-                      thumbnailCid={asset.thumbnailCid}
-                      mimeType={asset.mimeType}
-                      fileName={asset.fileName}
-                      className="w-full h-full object-cover rounded-lg"
-                    />
+                    {asset.metadata?.livepeer_thumbnail_url ? (
+                      <img
+                        src={asset.metadata.livepeer_thumbnail_url}
+                        alt={asset.name}
+                        className="w-full h-full object-cover rounded-lg"
+                      />
+                    ) : (
+                      <MediaRenderer
+                        fileCid={asset.fileCid}
+                        thumbnailCid={asset.thumbnailCid}
+                        mimeType={asset.mimeType}
+                        fileName={asset.fileName}
+                        className="w-full h-full object-cover rounded-lg"
+                      />
+                    )}
                   </div>
                   
                   {/* Info */}
