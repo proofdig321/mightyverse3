@@ -104,13 +104,21 @@ export default function AssetPreviewEnhanced({
         return (
           <div className="aspect-square mv-holographic rounded-xl flex items-center justify-center relative overflow-hidden">
             <div className="relative z-10">
-              <MediaRenderer
-                fileCid={asset.file_cid}
-                thumbnailCid={asset.thumbnail_cid}
-                mimeType={asset.metadata?.mime_type}
-                fileName={asset.name}
-                className="w-full h-full object-cover rounded-lg opacity-80"
-              />
+              {(asset as any).livepeer_thumbnail_url ? (
+                <img
+                  src={(asset as any).livepeer_thumbnail_url}
+                  alt={asset.name}
+                  className="w-full h-full object-cover rounded-lg opacity-80"
+                />
+              ) : (
+                <MediaRenderer
+                  fileCid={asset.file_cid}
+                  thumbnailCid={asset.thumbnail_cid}
+                  mimeType={asset.metadata?.mime_type}
+                  fileName={asset.name}
+                  className="w-full h-full object-cover rounded-lg opacity-80"
+                />
+              )}
             </div>
             <div className="absolute inset-0 bg-gradient-to-br from-yellow-400/10 via-transparent to-green-400/10"></div>
             <div className="absolute bottom-2 right-2 bg-black/70 px-2 py-1 rounded text-xs text-yellow-400">
@@ -128,7 +136,10 @@ export default function AssetPreviewEnhanced({
                 controls
                 className="w-full h-full object-cover"
                 src={(asset as any).livepeer_playback_url}
-                poster={asset.thumbnail_cid ? `https://gateway.pinata.cloud/ipfs/${asset.thumbnail_cid}` : undefined}
+                poster={
+                  (asset as any).livepeer_thumbnail_url || 
+                  (asset.thumbnail_cid ? `https://gateway.pinata.cloud/ipfs/${asset.thumbnail_cid}` : undefined)
+                }
               >
                 Your browser does not support video playback.
               </video>

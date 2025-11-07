@@ -21,11 +21,12 @@ export async function POST() {
         const status = await checkLivepeerStatus(asset.livepeer_asset_id);
         
         if (status.phase === 'ready' && asset.livepeer_status !== 'ready') {
-          // Update asset with playback info
+          // Update asset with playback info and thumbnail
           await enhancedDataManager.updateItem('assets', asset.id, {
             livepeer_status: 'ready',
             livepeer_playback_id: status.playbackId,
             livepeer_playback_url: `https://lp-playback.com/hls/${status.playbackId}/index.m3u8`,
+            livepeer_thumbnail_url: `https://lp-playback.com/hls/${status.playbackId}/thumbnail.jpg`,
             status: 'approved' // Mark as approved when ready
           });
           
