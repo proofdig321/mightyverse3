@@ -48,6 +48,7 @@ export async function POST() {
       message: `Synced ${synced} new assets from Livepeer dashboard`
     });
   } catch (error) {
+    console.error('Livepeer sync failed:', error);
     return NextResponse.json({ 
       success: false, 
       error: error instanceof Error ? error.message : 'Sync failed' 
