@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
     
     console.log('Importing to Livepeer:', { ipfsCid, name });
     
-    const livepeerResponse = await fetch('https://livepeer.studio/api/asset/import', {
+    const livepeerResponse = await fetch('https://livepeer.studio/api/asset/upload/url', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${process.env.LIVEPEER_API_KEY}`,
