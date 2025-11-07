@@ -46,12 +46,17 @@ import Pagination from '../../components/shared/pagination';
 interface Asset {
   id: string;
   name: string;
-  type: string;
+  type?: string;
+  asset_type?: string;
   status: string;
   fileCid?: string;
+  file_cid?: string;
   thumbnailCid?: string;
+  thumbnail_cid?: string;
   fileName?: string;
+  file_name?: string;
   mimeType?: string;
+  mime_type?: string;
   metadata?: {
     duration?: number;
     renditions?: Array<{
@@ -78,10 +83,10 @@ export default function Animations() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(9);
   
-  // Get approved animations/videos (no curation gate like murals/campaigns)
+  // Get approved/published animations/videos (no curation gate like murals/campaigns)
   const filteredAssets = assets.filter(asset => {
-    const isAnimation = asset.type === 'animation' || asset.type === 'video' || asset.mimeType?.startsWith('video/');
-    const isApproved = asset.status === 'approved';
+    const isAnimation = asset.asset_type === 'video' || asset.type === 'animation' || asset.type === 'video' || asset.mimeType?.startsWith('video/');
+    const isApproved = asset.status === 'approved' || asset.status === 'published';
     return isAnimation && isApproved;
   });
 
@@ -100,8 +105,8 @@ export default function Animations() {
 
       // pick a featured approved animation to show by default
       const firstApproved = (data as Asset[] || []).find((asset: Asset) => {
-        const isAnimation = asset.type === 'animation' || asset.type === 'video' || asset.mimeType?.startsWith('video/');
-        return isAnimation && asset.status === 'approved';
+        const isAnimation = asset.asset_type === 'video' || asset.type === 'animation' || asset.type === 'video' || asset.mimeType?.startsWith('video/');
+        return isAnimation && (asset.status === 'approved' || asset.status === 'published');
       });
 
       if (firstApproved) setSelectedAsset(firstApproved);
@@ -207,10 +212,10 @@ export default function Animations() {
                       />
                     ) : (
                       <MediaRenderer
-                        fileCid={asset.fileCid}
-                        thumbnailCid={asset.thumbnailCid}
-                        mimeType={asset.mimeType}
-                        fileName={asset.fileName}
+                        fileCid={asset.fileCid || asset.file_cid}
+                        thumbnailCid={asset.thumbnailCid || asset.thumbnail_cid}
+                        mimeType={asset.mimeType || asset.mime_type}
+                        fileName={asset.fileName || asset.file_name}
                         className="w-full h-full object-cover rounded-lg"
                       />
                     )}
