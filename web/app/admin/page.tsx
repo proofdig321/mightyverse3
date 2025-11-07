@@ -178,17 +178,17 @@ export default function AdminDashboard() {
               <button 
                 onClick={async () => {
                   try {
-                    const response = await fetch('/api/livepeer/process', { method: 'POST' });
+                    const response = await fetch('/api/livepeer/sync', { method: 'POST' });
                     const result = await response.json();
-                    alert(result.success ? result.message : 'Processing failed: ' + result.error);
+                    alert(result.success ? result.message : 'Sync failed: ' + result.error);
                     loadStats(); // Refresh stats
                   } catch (error) {
-                    alert('Processing failed: ' + error);
+                    alert('Sync failed: ' + error);
                   }
                 }}
                 className="mv-button w-full"
               >
-                🔄 Process Queue
+                🔄 Sync Dashboard
               </button>
               <div className="text-xs mv-text-muted mt-2">Check & export assets</div>
             </div>
