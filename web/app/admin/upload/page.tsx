@@ -28,11 +28,12 @@ interface UploadForm {
   };
 }
 
-// Direct Livepeer upload function (bypasses Next.js server)
-async function directLivepeerUpload(file: File, name: string, thumbnail: File | null, metadata: any) {
-  const LIVEPEER_API_KEY = '99764289-df40-4cba-ab77-3105df4bf7a9';
+// Direct Livepeer upload function (same pattern as IPFS directPinataUpload)
+async function directLivepeerUpload(file: File, name: string, thumbnail: File | null, metadata: any, onProgress?: (progress: number) => void): Promise<any> {
+  // Use client-side API key (same as IPFS pattern)
+  const LIVEPEER_API_KEY = process.env.NEXT_PUBLIC_LIVEPEER_API_KEY || '99764289-df40-4cba-ab77-3105df4bf7a9';
   
-  // Step 1: Request upload URL from Livepeer
+  // Step 1: Request upload URL from Livepeer (direct API call)
   const uploadResponse = await fetch('https://livepeer.studio/api/asset/request-upload', {
     method: 'POST',
     headers: {
@@ -41,61 +42,82 @@ async function directLivepeerUpload(file: File, name: string, thumbnail: File | 
     },
     body: JSON.stringify({
       name: name,
-      storage: { ipfs: true } // Enable IPFS export
+      storage: { ipfs: true }
     })
   });
   
   if (!uploadResponse.ok) {
-    throw new Error(`Upload request failed: ${uploadResponse.status}`);
+    const errorText = await uploadResponse.text();
+    throw new Error(`Upload request failed: ${uploadResponse.status} - ${errorText}`);
   }
   
   const uploadData = await uploadResponse.json();
   
-  // Step 2: Upload file directly to Livepeer
-  const fileUploadResponse = await fetch(uploadData.url, {
-    method: 'PUT',
-    body: file
-  });
-  
-  if (!fileUploadResponse.ok) {
-    throw new Error(`File upload failed: ${fileUploadResponse.status}`);
-  }
-  
-  // Step 3: Create database record via API
-  const dbResponse = await fetch('/api/assets', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      name: name,
-      creator_wallet: metadata.creatorWallet,
-      asset_type: metadata.assetType,
-      file_name: file.name,
-      file_size: file.size,
-      mime_type: file.type,
-      category: metadata.category,
-      tags: metadata.tags,
-      status: 'approved',
-      livepeer_asset_id: uploadData.asset.id,
-      livepeer_status: 'processing',
-      export_status: 'pending',
-      metadata: {
-        ...metadata.metadata,
-        description: metadata.description,
-        upload_method: 'livepeer_direct',
-        original_filename: file.name
+  // Step 2: Upload file using XMLHttpRequest (same as IPFS pattern)
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    
+    xhr.upload.addEventListener('progress', (e) => {
+      if (e.lengthComputable && onProgress) {
+        const progress = Math.round((e.loaded / e.total) * 100);
+        onProgress(progress);
       }
-    })
+    });
+
+    xhr.addEventListener('load', async () => {
+      if (xhr.status === 200 || xhr.status === 201) {
+        try {
+          // Step 3: Create database record
+          const dbResponse = await fetch('/api/assets', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              name: name,
+              creator_wallet: metadata.creatorWallet,
+              asset_type: metadata.assetType,
+              file_name: file.name,
+              file_size: file.size,
+              mime_type: file.type,
+              category: metadata.category,
+              tags: metadata.tags,
+              status: 'approved',
+              livepeer_asset_id: uploadData.asset.id,
+              livepeer_status: 'processing',
+              export_status: 'pending',
+              metadata: {
+                ...metadata.metadata,
+                description: metadata.description,
+                upload_method: 'livepeer_direct',
+                original_filename: file.name
+              }
+            })
+          });
+          
+          resolve({
+            success: true,
+            livepeerAssetId: uploadData.asset.id,
+            message: 'Direct upload successful'
+          });
+        } catch (dbError) {
+          console.warn('Database record creation failed, but Livepeer upload succeeded');
+          resolve({
+            success: true,
+            livepeerAssetId: uploadData.asset.id,
+            message: 'Upload successful, database update failed'
+          });
+        }
+      } else {
+        reject(new Error(`File upload failed: ${xhr.statusText}`));
+      }
+    });
+
+    xhr.addEventListener('error', () => {
+      reject(new Error('Direct Livepeer upload failed'));
+    });
+
+    xhr.open('PUT', uploadData.url);
+    xhr.send(file);
   });
-  
-  if (!dbResponse.ok) {
-    console.warn('Database record creation failed, but Livepeer upload succeeded');
-  }
-  
-  return {
-    success: true,
-    livepeerAssetId: uploadData.asset.id,
-    message: 'Direct upload successful'
-  };
 }
 
 export default function AdminUploadPage() {
@@ -253,33 +275,27 @@ export default function AdminUploadPage() {
           const useDirect = form.file.size > 25 * 1024 * 1024;
           
           if (useDirect) {
-            console.log('Using MCP Livepeer agent for large file');
-            const { mcpClient } = await import('../../../utils/agents/mcp-client');
+            console.log('Using direct Livepeer upload for large file (IPFS pattern)');
+            const result = await directLivepeerUpload(
+              form.file, 
+              form.name, 
+              form.thumbnail, 
+              {
+                assetType: form.type,
+                creatorWallet: wallet || '',
+                category: form.category,
+                description: form.description,
+                tags: form.tags,
+                metadata: form.metadata
+              },
+              (progress) => setUploadProgress(progress)
+            );
             
-            const mcpFormData = new FormData();
-            mcpFormData.append('file', form.file);
-            if (form.thumbnail) {
-              mcpFormData.append('thumbnail', form.thumbnail);
-            }
-            mcpFormData.append('name', form.name);
-            mcpFormData.append('assetType', form.type);
-            mcpFormData.append('creatorWallet', wallet || '');
-            mcpFormData.append('category', form.category);
-            mcpFormData.append('description', form.description);
-            mcpFormData.append('tags', JSON.stringify(form.tags));
-            mcpFormData.append('metadata', JSON.stringify(form.metadata));
-            
-            const result = await mcpClient.uploadToLivepeer(mcpFormData);
-            
-            if (result.success) {
-              console.log('MCP Livepeer upload successful:', result);
-              setUploadProgress(100);
-              setUploadedAsset({ name: form.name, type: form.type });
-              setUploadSuccess(true);
-              return;
-            } else {
-              throw new Error(result.error || 'MCP Livepeer upload failed');
-            }
+            console.log('Direct Livepeer upload successful:', result);
+            setUploadProgress(100);
+            setUploadedAsset({ name: form.name, type: form.type });
+            setUploadSuccess(true);
+            return;
           } else {
             // Use server route for smaller files
             const livepeerFormData = new FormData();

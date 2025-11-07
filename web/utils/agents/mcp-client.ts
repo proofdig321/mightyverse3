@@ -40,8 +40,8 @@ export class MCPClient {
     return this.callAgent('rbac', { wallet, roles, action });
   }
 
-  async uploadToLivepeer(formData: FormData): Promise<AgentResponse> {
-    return this.callAgentFormData('livepeer-upload', formData);
+  async getLivepeerUploadUrl(payload: any): Promise<AgentResponse> {
+    return this.callAgent('livepeer-upload', payload);
   }
 
   async getAgentStatus(): Promise<AgentResponse> {
