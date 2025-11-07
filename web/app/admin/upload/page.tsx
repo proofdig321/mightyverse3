@@ -154,12 +154,53 @@ export default function AdminUploadPage() {
     setUploadProgress(0);
 
     try {
-      // Upload main file to IPFS
-      const fileCid = await ipfsClient.pinFile(
+      let fileCid: string;
+      let uploadMethod = 'ipfs';
+
+      // Try Livepeer-first for video/audio, fallback to IPFS
+      if (form.type === 'video' || form.type === 'audio') {
+        try {
+          console.log('Attempting Livepeer direct upload...');
+          const livepeerFormData = new FormData();
+          livepeerFormData.append('file', form.file);
+          livepeerFormData.append('name', form.name);
+          livepeerFormData.append('assetType', form.type);
+          livepeerFormData.append('creatorWallet', wallet || '');
+          livepeerFormData.append('metadata', JSON.stringify({
+            ...form.metadata,
+            description: form.description,
+            category: form.category,
+            tags: form.tags
+          }));
+
+          const livepeerResponse = await fetch('/api/livepeer/upload', {
+            method: 'POST',
+            body: livepeerFormData
+          });
+
+          if (livepeerResponse.ok) {
+            const result = await livepeerResponse.json();
+            console.log('Livepeer upload successful:', result);
+            setUploadProgress(100);
+            setUploadedAsset({ name: form.name, type: form.type });
+            setUploadSuccess(true);
+            return; // Exit early on success
+          } else {
+            throw new Error('Livepeer upload failed');
+          }
+        } catch (livepeerError) {
+          console.warn('Livepeer upload failed, falling back to IPFS:', livepeerError);
+        }
+      }
+
+      // Fallback to existing IPFS flow
+      console.log('Using IPFS upload flow...');
+      fileCid = await ipfsClient.pinFile(
         form.file,
         `${form.name}-${Date.now()}`,
         (progress) => setUploadProgress(Math.round(progress * 0.7))
       );
+      uploadMethod = 'ipfs';
 
       setUploadProgress(75);
 
@@ -175,61 +216,41 @@ export default function AdminUploadPage() {
 
       setUploadProgress(90);
 
-      // Check for duplicates by file CID
-      const existingAssets = await enhancedDataManager.getData('assets');
-      const duplicate = existingAssets.find(asset => asset.file_cid === fileCid);
-      if (duplicate) {
-        throw new Error(`File already uploaded as "${duplicate.name}".`);
-      }
-
-      // Create asset record with enhanced metadata
-      await enhancedDataManager.createItem('assets', {
-        name: form.name,
-        creator_wallet: wallet || '0x860Ec697167Ba865DdE1eC9e172004100613e970',
-        asset_type: form.type,
-        file_cid: fileCid,
-        thumbnail_cid: thumbnailCid,
-        file_name: form.file.name,
-        file_size: form.file.size,
-        mime_type: form.file.type,
-        category: form.category,
-        tags: form.tags,
-        status: 'approved', // Admin uploads are auto-approved
-        metadata: {
-          ...form.metadata,
-          description: form.description,
-          dimensions: form.metadata.dimensions,
-          duration: form.metadata.duration,
-          frameRate: form.metadata.frameRate,
-          bitrate: form.metadata.bitrate,
-          sampleRate: form.metadata.sampleRate
+      // Only proceed with IPFS flow if we got here (Livepeer didn't work)
+      if (uploadMethod === 'ipfs') {
+        // Check for duplicates by file CID
+        const existingAssets = await enhancedDataManager.getData('assets');
+        const duplicate = existingAssets.find(asset => asset.file_cid === fileCid);
+        if (duplicate) {
+          throw new Error(`File already uploaded as "${duplicate.name}".`);
         }
-      });
 
-      setUploadProgress(95);
-      
-      // Auto-import to Livepeer for video/audio assets
-      if (form.type === 'video' || form.type === 'audio') {
-        try {
-          const livepeerResponse = await fetch('/api/livepeer/import', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              ipfsCid: fileCid,
-              name: form.name,
-              uploaderWallet: wallet
-            })
-          });
-          
-          if (livepeerResponse.ok) {
-            console.log('Auto-imported to Livepeer for streaming');
+        // Create asset record with enhanced metadata
+        await enhancedDataManager.createItem('assets', {
+          name: form.name,
+          creator_wallet: wallet || '0x860Ec697167Ba865DdE1eC9e172004100613e970',
+          asset_type: form.type,
+          file_cid: fileCid,
+          thumbnail_cid: thumbnailCid,
+          file_name: form.file.name,
+          file_size: form.file.size,
+          mime_type: form.file.type,
+          category: form.category,
+          tags: form.tags,
+          status: 'approved', // Admin uploads are auto-approved
+          metadata: {
+            ...form.metadata,
+            description: form.description,
+            dimensions: form.metadata.dimensions,
+            duration: form.metadata.duration,
+            frameRate: form.metadata.frameRate,
+            bitrate: form.metadata.bitrate,
+            sampleRate: form.metadata.sampleRate,
+            upload_method: 'ipfs_direct'
           }
-        } catch (error) {
-          console.warn('Livepeer auto-import failed:', error);
-          // Continue - asset still usable via IPFS
-        }
+        });
       }
-      
+
       setUploadProgress(100);
       setUploadedAsset({ name: form.name, type: form.type });
       setUploadSuccess(true);

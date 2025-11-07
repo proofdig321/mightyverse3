@@ -1,18 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { campaignOrchestrator } from '../../../../services/campaigns/orchestrator';
-import { requireApiKey } from '../../../lib/auth';
+import { enhancedDataManager } from '../../../utils/storage/enhanced-data-store';
 
-export async function GET(request: NextRequest) {
-  const auth = requireApiKey(request);
-  if (auth) return auth;
+export async function GET() {
   try {
-    const url = new URL(request.url);
-    const limit = Number(url.searchParams.get('limit') || '50');
-    const offset = Number(url.searchParams.get('offset') || '0');
-    const campaigns = await campaignOrchestrator.listCampaigns(limit, offset);
-    return NextResponse.json({ campaigns });
-  } catch (err) {
-    console.error('API /campaigns GET error:', err);
-    return NextResponse.json({ error: 'failed to list campaigns' }, { status: 500 });
+    const campaigns = await enhancedDataManager.getData('campaigns');
+    return NextResponse.json(campaigns);
+  } catch (error) {
+    return NextResponse.json({
+      error: error instanceof Error ? error.message : 'Failed to fetch campaigns'
+    }, { status: 500 });
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const campaignData = await request.json();
+    
+    const campaign = await enhancedDataManager.createItem('campaigns', {
+      ...campaignData,
+      status: 'draft'
+    });
+    
+    return NextResponse.json(campaign);
+  } catch (error) {
+    return NextResponse.json({
+      error: error instanceof Error ? error.message : 'Failed to create campaign'
+    }, { status: 500 });
   }
 }

@@ -66,22 +66,22 @@ export default function AdminDashboard() {
 
       const pendingAssets = assets.filter(a => a.status === 'submitted').length;
       const activeCampaigns = campaigns.filter(c => c.status === 'active').length;
-      const mintQueue = assets.filter(a => a.status === 'approved' && !a.minted).length;
-      const activeJobs = jobs.filter(j => j.status === 'processing').length;
+      const processingAssets = assets.filter(a => a.livepeer_status === 'processing').length;
+      const readyAssets = assets.filter(a => a.livepeer_status === 'ready').length;
 
       setStats([
         { name: 'Pending Assets', value: pendingAssets.toString(), change: '', changeType: 'increase', href: '/admin/assets' },
+        { name: 'Processing', value: processingAssets.toString(), change: '', changeType: 'decrease', href: '/admin/assets' },
+        { name: 'Ready to Stream', value: readyAssets.toString(), change: '', changeType: 'increase', href: '/admin/assets' },
         { name: 'Active Campaigns', value: activeCampaigns.toString(), change: '', changeType: 'increase', href: '/admin/campaigns' },
-        { name: 'Processing Jobs', value: activeJobs.toString(), change: '', changeType: 'decrease', href: '/admin/mcp' },
-        { name: 'Total Users', value: users.length.toString(), change: '', changeType: 'increase', href: '/admin/rbac' },
       ]);
     } catch (error) {
       console.error('Failed to load stats:', error);
       setStats([
         { name: 'Pending Assets', value: '0', change: '', changeType: 'increase', href: '/admin/assets' },
+        { name: 'Processing', value: '0', change: '', changeType: 'decrease', href: '/admin/assets' },
+        { name: 'Ready to Stream', value: '0', change: '', changeType: 'increase', href: '/admin/assets' },
         { name: 'Active Campaigns', value: '0', change: '', changeType: 'increase', href: '/admin/campaigns' },
-        { name: 'Processing Jobs', value: '0', change: '', changeType: 'decrease', href: '/admin/mcp' },
-        { name: 'Total Users', value: '0', change: '', changeType: 'increase', href: '/admin/rbac' },
       ]);
     } finally {
       setDataLoading(false);
@@ -161,37 +161,36 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-      {/* Livepeer Test */}
+      {/* Livepeer Processing Status */}
       <div className="mv-card p-4 sm:p-6 mb-8">
-        <h3 className="mv-heading-md mb-4">🚀 Livepeer Integration Test</h3>
+        <h3 className="mv-heading-md mb-4">🎬 Livepeer Processing Center</h3>
         <div className="space-y-4">
-          <div className="bg-blue-900/20 border border-blue-400/20 rounded p-4">
-            <p className="text-sm mb-4">Test the Livepeer integration with your IPFS video. This will import your video to Livepeer for fast streaming.</p>
-            <div className="flex space-x-4">
-              <input 
-                type="text" 
-                placeholder="Enter IPFS CID of test video"
-                className="flex-1 px-3 py-2 bg-white/10 border border-white/20 rounded text-white"
-                id="testCid"
-              />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-blue-900/20 border border-blue-400/20 rounded p-4 text-center">
+              <div className="text-2xl font-bold text-blue-400">{stats.find(s => s.name === 'Processing')?.value || '0'}</div>
+              <div className="text-sm mv-text-muted">Transcoding</div>
+            </div>
+            <div className="bg-green-900/20 border border-green-400/20 rounded p-4 text-center">
+              <div className="text-2xl font-bold text-green-400">{stats.find(s => s.name === 'Ready to Stream')?.value || '0'}</div>
+              <div className="text-sm mv-text-muted">Ready for HLS</div>
+            </div>
+            <div className="bg-purple-900/20 border border-purple-400/20 rounded p-4 text-center">
               <button 
                 onClick={async () => {
-                  const cid = (document.getElementById('testCid') as HTMLInputElement).value;
-                  if (!cid) return alert('Enter CID');
-                  
-                  const response = await fetch('/api/livepeer/import', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ ipfsCid: cid, name: 'Test Video', uploaderWallet: wallet })
-                  });
-                  
-                  const result = await response.json();
-                  alert(result.success ? 'Import started!' : 'Import failed: ' + result.error);
+                  try {
+                    const response = await fetch('/api/livepeer/process', { method: 'POST' });
+                    const result = await response.json();
+                    alert(result.success ? result.message : 'Processing failed: ' + result.error);
+                    loadStats(); // Refresh stats
+                  } catch (error) {
+                    alert('Processing failed: ' + error);
+                  }
                 }}
-                className="mv-button"
+                className="mv-button w-full"
               >
-                Import to Livepeer
+                🔄 Process Queue
               </button>
+              <div className="text-xs mv-text-muted mt-2">Check & export assets</div>
             </div>
           </div>
         </div>

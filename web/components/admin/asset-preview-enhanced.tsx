@@ -195,6 +195,24 @@ export default function AssetPreviewEnhanced({
               {asset.status}
             </span>
             <span className="mv-text-muted">{asset.asset_type}</span>
+            {(asset as any).livepeer_status && (
+              <span className={`px-2 py-1 rounded-full text-xs ${
+                (asset as any).livepeer_status === 'ready' ? 'text-green-400 bg-green-400/10' :
+                (asset as any).livepeer_status === 'processing' ? 'text-blue-400 bg-blue-400/10' :
+                'text-yellow-400 bg-yellow-400/10'
+              }`}>
+                🎬 {(asset as any).livepeer_status}
+              </span>
+            )}
+            {(asset as any).export_status && (
+              <span className={`px-2 py-1 rounded-full text-xs ${
+                (asset as any).export_status === 'completed' ? 'text-purple-400 bg-purple-400/10' :
+                (asset as any).export_status === 'pending' ? 'text-orange-400 bg-orange-400/10' :
+                'text-red-400 bg-red-400/10'
+              }`}>
+                📦 {(asset as any).export_status}
+              </span>
+            )}
             {asset.quality_score && (
               <span className="mv-text-energy">
                 {Math.round(asset.quality_score * 100)}% quality
@@ -236,10 +254,28 @@ export default function AssetPreviewEnhanced({
           <span className="mv-text-muted">Created:</span>
           <div>{new Date(asset.created_at).toLocaleDateString()}</div>
         </div>
+        {(asset as any).livepeer_playback_id && (
+          <div>
+            <span className="mv-text-muted">Playback ID:</span>
+            <div className="font-mono text-xs">{(asset as any).livepeer_playback_id}</div>
+          </div>
+        )}
+        {(asset as any).livepeer_playback_url && (
+          <div>
+            <span className="mv-text-muted">Stream:</span>
+            <div className="text-xs text-green-400">HLS Ready</div>
+          </div>
+        )}
         {asset.file_cid && (
           <div className="col-span-2">
             <span className="mv-text-muted">IPFS CID:</span>
             <div className="font-mono text-xs break-all">{asset.file_cid}</div>
+          </div>
+        )}
+        {(asset as any).metadata?.upload_method && (
+          <div className="col-span-2">
+            <span className="mv-text-muted">Upload Method:</span>
+            <div className="text-xs capitalize">{(asset as any).metadata.upload_method.replace('_', ' ')}</div>
           </div>
         )}
       </div>
