@@ -197,15 +197,90 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Navigation & Demo Integration */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-8">
-        <div className="xl:col-span-2 space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <CampaignManagementWidget />
-            <MuralAssemblyWidget />
+      {/* Production Features - Compact Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 mb-8">
+        <div className="mv-card p-4">
+          <h3 className="mv-heading-sm mb-3 flex items-center space-x-2">
+            <span>◇</span>
+            <span>Campaign Management</span>
+          </h3>
+          <div className="space-y-3">
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <div className="bg-white/5 rounded p-2">
+                <div className="text-lg font-bold">{stats.find(s => s.name === 'Active Campaigns')?.value || '0'}</div>
+                <div className="text-xs mv-text-muted">Active</div>
+              </div>
+              <div className="bg-white/5 rounded p-2">
+                <div className="text-lg font-bold">0</div>
+                <div className="text-xs mv-text-muted">Streams</div>
+              </div>
+              <div className="bg-white/5 rounded p-2">
+                <div className="text-lg font-bold">0</div>
+                <div className="text-xs mv-text-muted">Revenue</div>
+              </div>
+            </div>
+            <div className="flex space-x-2">
+              <Link href="/campaigns/demo" className="mv-button-secondary flex-1 text-center text-sm py-2">
+                Create
+              </Link>
+              <Link href="/campaigns/dashboard" className="mv-button-secondary flex-1 text-center text-sm py-2">
+                Manage
+              </Link>
+            </div>
           </div>
         </div>
-        <DemoNavigationPanel />
+
+        <div className="mv-card p-4">
+          <h3 className="mv-heading-sm mb-3 flex items-center space-x-2">
+            <span>◈</span>
+            <span>Mural Assembly</span>
+          </h3>
+          <div className="space-y-3">
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <div className="bg-white/5 rounded p-2">
+                <div className="text-lg font-bold">1</div>
+                <div className="text-xs mv-text-muted">Murals</div>
+              </div>
+              <div className="bg-white/5 rounded p-2">
+                <div className="text-lg font-bold">3</div>
+                <div className="text-xs mv-text-muted">Versions</div>
+              </div>
+              <div className="bg-white/5 rounded p-2">
+                <div className="text-lg font-bold">120s</div>
+                <div className="text-xs mv-text-muted">Duration</div>
+              </div>
+            </div>
+            <div className="flex space-x-2">
+              <Link href="/murals" className="mv-button-secondary flex-1 text-center text-sm py-2">
+                View
+              </Link>
+              <button className="mv-button-secondary flex-1 text-sm py-2">
+                Create
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="mv-card p-4">
+          <h3 className="mv-heading-sm mb-3 flex items-center space-x-2">
+            <span>🎯</span>
+            <span>Demo Features</span>
+          </h3>
+          <div className="space-y-2">
+            <Link href="/admin/demo-integration" className="block p-2 bg-white/5 rounded hover:bg-white/10 transition-colors">
+              <div className="text-sm font-medium">Integration Hub</div>
+              <div className="text-xs mv-text-muted">All demo features</div>
+            </Link>
+            <Link href="/campaigns/demo" className="block p-2 bg-white/5 rounded hover:bg-white/10 transition-colors">
+              <div className="text-sm font-medium">Campaign Demo</div>
+              <div className="text-xs mv-text-muted">Original workflow</div>
+            </Link>
+            <Link href="/deck/demo" className="block p-2 bg-white/5 rounded hover:bg-white/10 transition-colors">
+              <div className="text-sm font-medium">3D Deck Viewer</div>
+              <div className="text-xs mv-text-muted">Asset positioning</div>
+            </Link>
+          </div>
+        </div>
       </div>
 
       {/* Timeline Editor - Full Width */}

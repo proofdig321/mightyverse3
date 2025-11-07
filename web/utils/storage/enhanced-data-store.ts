@@ -209,7 +209,16 @@ class EnhancedDataManager {
           .select('*')
           .order('created_at', { ascending: false });
 
-        if (error) throw error;
+        if (error) {
+          console.warn(`Supabase error for ${table}:`, error.message);
+          // If table doesn't exist (404), use mock data
+          if (error.code === 'PGRST116' || error.message.includes('does not exist')) {
+            const mockData = this.getMockData(table);
+            this.cache.set(table, mockData);
+            return mockData;
+          }
+          throw error;
+        }
         
         this.cache.set(table, data || []);
         return data || [];
