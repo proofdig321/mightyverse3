@@ -8,7 +8,8 @@
 import React, { useState, useEffect } from 'react';
 import { useRBAC } from '../auth/rbac-provider';
 import Link from 'next/link';
-import { dataManager } from '../../utils/storage/data-store';
+import { enhancedDataManager } from '../../utils/storage/enhanced-data-store';
+import ContentCurationPanel from '../../components/admin/content-curation-panel';
 
 interface DashboardStat {
   name: string;
@@ -38,33 +39,43 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     loadStats();
+    
+    // Set up real-time subscriptions
+    const unsubscribeAssets = enhancedDataManager.subscribe('assets', loadStats);
+    const unsubscribeCampaigns = enhancedDataManager.subscribe('campaigns', loadStats);
+    
+    return () => {
+      unsubscribeAssets();
+      unsubscribeCampaigns();
+    };
   }, []);
 
   const loadStats = async () => {
     try {
-      const [assets, campaigns, users] = await Promise.all([
-        dataManager.getData('assets'),
-        dataManager.getData('campaigns'), 
-        dataManager.getData('users')
+      const [assets, campaigns, users, jobs] = await Promise.all([
+        enhancedDataManager.getData('assets'),
+        enhancedDataManager.getData('campaigns'), 
+        enhancedDataManager.getData('users'),
+        enhancedDataManager.getData('processing_jobs')
       ]);
 
-      const pendingAssets = assets.filter(a => a.status === 'pending').length;
+      const pendingAssets = assets.filter(a => a.status === 'submitted').length;
       const activeCampaigns = campaigns.filter(c => c.status === 'active').length;
       const mintQueue = assets.filter(a => a.status === 'approved' && !a.minted).length;
+      const activeJobs = jobs.filter(j => j.status === 'processing').length;
 
       setStats([
         { name: 'Pending Assets', value: pendingAssets.toString(), change: '', changeType: 'increase', href: '/admin/assets' },
         { name: 'Active Campaigns', value: activeCampaigns.toString(), change: '', changeType: 'increase', href: '/admin/campaigns' },
-        { name: 'Mint Queue', value: mintQueue.toString(), change: '', changeType: 'decrease', href: '/admin/mint-queue' },
+        { name: 'Processing Jobs', value: activeJobs.toString(), change: '', changeType: 'decrease', href: '/admin/mcp' },
         { name: 'Total Users', value: users.length.toString(), change: '', changeType: 'increase', href: '/admin/rbac' },
       ]);
     } catch (error) {
       console.error('Failed to load stats:', error);
-      // Fallback to empty stats
       setStats([
         { name: 'Pending Assets', value: '0', change: '', changeType: 'increase', href: '/admin/assets' },
         { name: 'Active Campaigns', value: '0', change: '', changeType: 'increase', href: '/admin/campaigns' },
-        { name: 'Mint Queue', value: '0', change: '', changeType: 'decrease', href: '/admin/mint-queue' },
+        { name: 'Processing Jobs', value: '0', change: '', changeType: 'decrease', href: '/admin/mcp' },
         { name: 'Total Users', value: '0', change: '', changeType: 'increase', href: '/admin/rbac' },
       ]);
     } finally {
@@ -179,6 +190,11 @@ export default function AdminDashboard() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Content Curation Panel */}
+      <div className="mb-8">
+        <ContentCurationPanel />
       </div>
 
       {/* Recent Activity */}

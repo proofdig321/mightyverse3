@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { MuralUtils } from '../../utils/murals/assembly';
 import Pagination from '../../components/Pagination';
+import { enhancedDataManager } from '../../utils/storage/enhanced-data-store';
 
 const mockMural = {
   id: 'mural_superhero_ego',
@@ -52,7 +53,46 @@ export default function Murals() {
   const [currentVersion, setCurrentVersion] = useState('futuristic');
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [murals, setMurals] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const itemsPerPage = 6;
+
+  useEffect(() => {
+    loadMurals();
+    
+    // Set up real-time subscription
+    const unsubscribe = enhancedDataManager.subscribe('murals', loadMurals);
+    return unsubscribe;
+  }, []);
+
+  const loadMurals = async () => {
+    try {
+      const data = await enhancedDataManager.getData('murals');
+      if (data.length === 0) {
+        // Create sample mural if none exist
+        await enhancedDataManager.createItem('murals', {
+          title: 'Super Hero Ego',
+          artist_wallet: '0x860Ec697167Ba865DdE1eC9e172004100613e970',
+          description: 'Complete holographic mural with multiple animator perspectives',
+          total_duration: 180,
+          animator_versions: ['futuristic', 'gritty', 'cultural'],
+          default_version: 'futuristic',
+          status: 'published',
+          metadata: {
+            genre: 'Afrofuturism Hip-Hop',
+            tags: ['holographic', 'african', 'futuristic'],
+            isrc: 'ZA-80H-25-00097'
+          }
+        });
+        return loadMurals();
+      }
+      setMurals(data);
+    } catch (error) {
+      console.error('Failed to load murals:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getVersionCards = (version: string) => mockMural.cards.filter(card => card.animatorVersion === version);
   const getCardIcon = (card: any) => card.title.includes('Intro') ? '◆' : '◈';
@@ -65,15 +105,25 @@ export default function Murals() {
     }
   };
 
+  const currentMural = murals[0] || mockMural;
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="text-center mb-12 mv-fade-in">
-          <h1 className="mv-heading-xl mb-4">◈ {mockMural.title} ◈</h1>
-          <p className="mv-text-muted text-lg mb-6">{mockMural.description}</p>
+          <h1 className="mv-heading-xl mb-4">◈ {currentMural.title} ◈</h1>
+          <p className="mv-text-muted text-lg mb-6">{currentMural.description}</p>
           
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
             <div className="mv-card p-4 text-center">
-              <div className="text-2xl font-bold text-white">{mockMural.cards.length}</div>
+              <div className="text-2xl font-bold text-white">{currentMural.cards?.length || 2}</div>
               <div className="mv-text-muted text-sm">Cards</div>
             </div>
             <div className="mv-card p-4 text-center">
@@ -92,7 +142,7 @@ export default function Murals() {
         </div>
 
         <div className="flex flex-wrap gap-2 sm:gap-4 mb-8 justify-center">
-          {mockMural.animatorVersions.map((version) => (
+          {(currentMural.animator_versions || mockMural.animatorVersions).map((version: string) => (
             <button
               key={version}
               onClick={() => setCurrentVersion(version)}
@@ -118,9 +168,9 @@ export default function Murals() {
           </div>
 
           <div className="relative h-24 bg-black/20 rounded-xl overflow-hidden mb-4">
-            {mockMural.cards.map((card, index) => {
-              const widthPercent = (card.duration / mockMural.totalDuration) * 100;
-              const leftPercent = (card.startFrame / mockMural.metadata.totalFrames) * 100;
+            {(currentMural.cards || mockMural.cards).map((card: any, index: number) => {
+              const widthPercent = (card.duration / (currentMural.total_duration || mockMural.totalDuration)) * 100;
+              const leftPercent = (card.startFrame / (currentMural.metadata?.totalFrames || mockMural.metadata.totalFrames)) * 100;
               
               return (
                 <div
@@ -142,7 +192,7 @@ export default function Murals() {
         <div className="mb-8">
           <h3 className="mv-heading-md mb-6">Card Deck - {currentVersion.charAt(0).toUpperCase() + currentVersion.slice(1)} Version</h3>
           <div className="mv-grid-responsive">
-            {getVersionCards(currentVersion).map((card) => (
+            {getVersionCards(currentVersion).map((card: any) => (
               <div 
                 key={card.id}
                 className={`mv-card mv-holographic p-6 cursor-pointer transition-all duration-300 ${
@@ -175,7 +225,7 @@ export default function Murals() {
                 </div>
 
                 <div className="flex flex-wrap gap-1 mt-3">
-                  {card.metadata.tags.slice(0, 3).map((tag, idx) => (
+                  {card.metadata.tags.slice(0, 3).map((tag: string, idx: number) => (
                     <span key={idx} className="bg-white/10 px-2 py-1 rounded text-xs mv-text-muted">
                       #{tag}
                     </span>

@@ -36,8 +36,9 @@
     "integration:test": "./scripts/integration/run_integration_tests.sh"
   },
   "dependencies": {
-    "jest": "^29.0.0",
     "@playwright/test": "^1.40.0",
+    "dotenv": "^17.2.3",
+    "jest": "^29.0.0",
     "ts-jest": "^29.0.0"
   },
   "devDependencies": {

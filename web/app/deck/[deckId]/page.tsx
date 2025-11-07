@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { enhancedDataManager } from '../../../utils/storage/enhanced-data-store';
 
 interface DeckAsset {
   id: string;
@@ -22,16 +23,89 @@ export default function DeckViewer({ params }: { params: { deckId: string } }) {
   const [selectedAsset, setSelectedAsset] = useState<DeckAsset | null>(null);
   const [viewMode, setViewMode] = useState<'orbit' | 'walk' | 'fly'>('orbit');
   const [isPlaying, setIsPlaying] = useState(false);
+  const [deck, setDeck] = useState<any>(null);
+  const [deckAssets, setDeckAssets] = useState<DeckAsset[]>(mockDeck);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Simulate 3D scene updates
+    loadDeck();
+  }, [params.deckId]);
+
+  const loadDeck = async () => {
+    try {
+      const deckData = await enhancedDataManager.getItemById('decks', params.deckId);
+      if (deckData) {
+        setDeck(deckData);
+        
+        // Load deck assets
+        const assets = await enhancedDataManager.getData('deck_assets');
+        const deckSpecificAssets = assets
+          .filter(a => a.deck_id === params.deckId)
+          .map(a => ({
+            id: a.id,
+            title: a.title,
+            type: a.asset_type as '3d' | 'hologram',
+            position: a.position || { x: 0, y: 0, z: 0 },
+            rotation: a.rotation || { x: 0, y: 0, z: 0 },
+            scale: a.scale || 1
+          }));
+        
+        if (deckSpecificAssets.length > 0) {
+          setDeckAssets(deckSpecificAssets);
+        }
+      } else {
+        // Create sample deck if it doesn't exist
+        const newDeck = await enhancedDataManager.createItem('decks', {
+          title: `Holographic Deck ${params.deckId}`,
+          creator_wallet: '0x860Ec697167Ba865DdE1eC9e172004100613e970',
+          description: '3D holographic asset collection',
+          scene_config: { lighting: 'ambient', background: 'space' },
+          view_mode: 'orbit',
+          is_public: true,
+          status: 'published'
+        });
+        setDeck(newDeck);
+      }
+    } catch (error) {
+      console.error('Failed to load deck:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateAssetPosition = async (assetId: string, position: any) => {
+    try {
+      await enhancedDataManager.updateItem('deck_assets', assetId, { position });
+      setDeckAssets(prev => prev.map(a => 
+        a.id === assetId ? { ...a, position } : a
+      ));
+    } catch (error) {
+      console.error('Failed to update asset position:', error);
+    }
+  };
+
+  useEffect(() => {
+    // Simulate 3D scene updates with real-time sync
     if (isPlaying) {
       const interval = setInterval(() => {
-        // Update animations
-      }, 16);
+        // Update animations and sync with database
+        if (deck) {
+          enhancedDataManager.updateItem('decks', deck.id, {
+            last_played: new Date().toISOString()
+          }).catch(console.warn);
+        }
+      }, 5000); // Update every 5 seconds
       return () => clearInterval(interval);
     }
-  }, [isPlaying]);
+  }, [isPlaying, deck]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="mighty-verse-app min-h-screen">
@@ -68,7 +142,7 @@ export default function DeckViewer({ params }: { params: { deckId: string } }) {
                 </div>
                 
                 {/* Floating Assets */}
-                {mockDeck.map((asset, index) => (
+                {deckAssets.map((asset, index) => (
                   <div
                     key={asset.id}
                     className="absolute w-16 h-16 bg-gradient-to-br from-purple-400 to-blue-400 rounded-xl flex items-center justify-center cursor-pointer hover:scale-110 transition-all duration-300"
@@ -105,9 +179,10 @@ export default function DeckViewer({ params }: { params: { deckId: string } }) {
 
             {/* Scene Info */}
             <div className="absolute top-6 left-6 mv-card p-4">
-              <div className="text-sm mv-text-muted">Deck: {params.deckId}</div>
-              <div className="text-sm mv-text-muted">Assets: {mockDeck.length}</div>
+              <div className="text-sm mv-text-muted">Deck: {deck?.title || params.deckId}</div>
+              <div className="text-sm mv-text-muted">Assets: {deckAssets.length}</div>
               <div className="text-sm mv-text-muted">Mode: {viewMode}</div>
+              <div className="text-sm mv-text-muted">Status: {deck?.status || 'Loading...'}</div>
             </div>
           </div>
         </div>
@@ -118,7 +193,7 @@ export default function DeckViewer({ params }: { params: { deckId: string } }) {
             <h3 className="mv-heading-md mb-6">◉ Scene Assets</h3>
             
             <div className="space-y-4 mb-6">
-              {mockDeck.map((asset) => (
+              {deckAssets.map((asset) => (
                 <div
                   key={asset.id}
                   className={`p-4 rounded-xl cursor-pointer transition-all duration-300 ${
