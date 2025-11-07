@@ -1,0 +1,16 @@
+{
+  "_metadata": {
+    "version": "1.0",
+    "created": "2025-01-27",
+    "description": "Registry mapping wallet addresses to role manifest CIDs",
+    "last_updated": "2025-01-27"
+  },
+  "_admin_wallets": [
+    "0x860Ec697167Ba865DdE1eC9e172004100613e970"
+  ],
+  "registry": {
+    "0x860Ec697167Ba865DdE1eC9e172004100613e970": "ipfs://QmSuperAdminRoleManifest",
+    "0x052B59572dCcF4C515Cd447F6088eEF93Ab1b39f": "ipfs://QmEmailUserRoleManifest",
+    "0x449e8b0f00000000000000000000000000000000": "ipfs://QmEmailGeneratedWalletManifest"
+  }
+}

@@ -1,0 +1,5 @@
+torch
+torchvision
+segment-anything
+whisper
+nft_storage

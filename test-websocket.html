@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket Test - The Mighty Verse</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #0a0a0a; color: #fff; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .connected { background: #1a4a1a; border: 1px solid #2a6a2a; }
+        .disconnected { background: #4a1a1a; border: 1px solid #6a2a2a; }
+        .message { background: #1a1a4a; border: 1px solid #2a2a6a; margin: 5px 0; padding: 8px; border-radius: 3px; }
+        button { background: #4a4a4a; color: #fff; border: none; padding: 10px 20px; margin: 5px; border-radius: 5px; cursor: pointer; }
+        button:hover { background: #6a6a6a; }
+        input, textarea { background: #2a2a2a; color: #fff; border: 1px solid #4a4a4a; padding: 8px; margin: 5px; border-radius: 3px; }
+        #messages { height: 300px; overflow-y: auto; border: 1px solid #4a4a4a; padding: 10px; background: #1a1a1a; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 The Mighty Verse WebSocket Test</h1>
+        
+        <div id="status" class="status disconnected">
+            Status: Disconnected
+        </div>
+        
+        <div>
+            <h3>Connection</h3>
+            <input type="text" id="wsUrl" value="wss://fuzzy-parakeet-6vgwwrxqw7r3674-8081.app.github.dev" style="width: 400px;">
+            <br>
+            <input type="text" id="token" placeholder="JWT Token (optional)" style="width: 400px;">
+            <br>
+            <button onclick="connect()">Connect</button>
+            <button onclick="disconnect()">Disconnect</button>
+        </div>
+        
+        <div>
+            <h3>Test Messages</h3>
+            <button onclick="sendPing()">Send Ping</button>
+            <button onclick="sendTest()">Send Test</button>
+            <button onclick="subscribe('general')">Subscribe General</button>
+            <button onclick="subscribe('admin')">Subscribe Admin</button>
+        </div>
+        
+        <div>
+            <h3>Custom Message</h3>
+            <textarea id="customMessage" rows="3" style="width: 100%;">{"type":"test","data":"Hello WebSocket!"}</textarea>
+            <br>
+            <button onclick="sendCustom()">Send Custom</button>
+        </div>
+        
+        <div>
+            <h3>Messages</h3>
+            <div id="messages"></div>
+            <button onclick="clearMessages()">Clear Messages</button>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        const statusEl = document.getElementById('status');
+        const messagesEl = document.getElementById('messages');
+        
+        function updateStatus(status, connected) {
+            statusEl.textContent = `Status: ${status}`;
+            statusEl.className = `status ${connected ? 'connected' : 'disconnected'}`;
+        }
+        
+        function addMessage(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = 'message';
+            div.innerHTML = `<strong>${new Date().toLocaleTimeString()}</strong> [${type}] ${message}`;
+            messagesEl.appendChild(div);
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+        }
+        
+        function connect() {
+            const url = document.getElementById('wsUrl').value;
+            const token = document.getElementById('token').value;
+            
+            let wsUrl = url;
+            if (token) {
+                wsUrl += `?token=${encodeURIComponent(token)}`;
+            }
+            
+            addMessage(`Connecting to: ${wsUrl}`, 'info');
+            
+            try {
+                ws = new WebSocket(wsUrl);
+                
+                ws.onopen = function(event) {
+                    updateStatus('Connected', true);
+                    addMessage('WebSocket connection opened', 'success');
+                };
+                
+                ws.onmessage = function(event) {
+                    addMessage(`Received: ${event.data}`, 'received');
+                };
+                
+                ws.onclose = function(event) {
+                    updateStatus(`Disconnected (${event.code})`, false);
+                    addMessage(`Connection closed: ${event.code} - ${event.reason}`, 'warning');
+                };
+                
+                ws.onerror = function(error) {
+                    updateStatus('Error', false);
+                    addMessage(`WebSocket error: ${error}`, 'error');
+                };
+                
+            } catch (error) {
+                addMessage(`Connection error: ${error.message}`, 'error');
+            }
+        }
+        
+        function disconnect() {
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+        }
+        
+        function sendMessage(message) {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify(message));
+                addMessage(`Sent: ${JSON.stringify(message)}`, 'sent');
+            } else {
+                addMessage('Not connected to WebSocket', 'error');
+            }
+        }
+        
+        function sendPing() {
+            sendMessage({ type: 'ping' });
+        }
+        
+        function sendTest() {
+            sendMessage({ type: 'test' });
+        }
+        
+        function subscribe(channel) {
+            sendMessage({ type: 'subscribe', channel: channel });
+        }
+        
+        function sendCustom() {
+            try {
+                const message = JSON.parse(document.getElementById('customMessage').value);
+                sendMessage(message);
+            } catch (error) {
+                addMessage(`Invalid JSON: ${error.message}`, 'error');
+            }
+        }
+        
+        function clearMessages() {
+            messagesEl.innerHTML = '';
+        }
+        
+        // Auto-connect on page load
+        window.onload = function() {
+            addMessage('WebSocket test page loaded', 'info');
+            addMessage('Click Connect to start testing', 'info');
+        };
+    </script>
+</body>
+</html>

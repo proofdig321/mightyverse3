@@ -1,0 +1,676 @@
+Excellent — I’ll do this in two parts: first a short recap so we’re both aligned, then I’ll produce a complete, GitHub-ready AGENTS.md plus a set of mission templates (YAML/markdown) that you can drop into your repo under /.github/agents/ or /agents/ and use with GitHub Agent HQ / Codespaces. I’ll also include a concise developer playbook summary (the part you can paste into docs/playbook.md).
+
+No questions — I’ll assume the platform-centric Mighty Verse model we designed (Golden Shovel owns the platform; collaborators submit curated assets; deck-of-cards; multi-animator murals; 2.5D holographic pop-out; admin-controlled minting/credits; AI-assisted tagging and ad suggestions; Sanity marketing-only; no native DBs; IPFS/nft.storage/Arweave for assets; smart contracts for credits/royalties).
+
+
+---
+
+Quick recap (one-page)
+
+Platform model: Golden Shovel owns the platform. Collaborators (artists, animators) submit assets; platform curates, approves & mints. Credits authorize mints; platform issues credits.
+
+Content model:
+
+Card = single asset (audio/video/animation segment) + metadata + depth maps + ad anchors.
+
+Mini-deck = collaborator/animator collection.
+
+Mural = full animated video/story composed from cards/decks. Multiple animator perspectives (futuristic / gritty) produce alternate murals.
+
+
+Experience: Lean 2.5D holographic mode (depth maps + R3F planes) with pop-out transitions and deck UI (play card only, shuffle, switch animator perspective).
+
+AI roles (human-in-loop): depth estimation (MiDaS), segmentation (SAM/YOLO), visual/audio tagging (CLIP/Whisper), ad-anchor suggestion, QC confidence scoring. All suggestions require admin approval for minting/ad placement.
+
+Storage & Provenance: IPFS (nft.storage/web3.storage) for assets/manifest; Arweave/Filecoin for permanence; metadata saved on IPFS and referenced on-chain (NFT tokenURI). Use Ceramic/third-party stream for optional mutable admin logs.
+
+Web3: Smart contracts (CreditToken, ApprovalRegistry, NFTCollection with ERC-2981 royalties). Admin EIP-712 signatures for approvals; multisig for governance.
+
+CMS: Sanity for marketing-only content (no transactional data).
+
+Ad network: Tokenized ad slots per card; AI suggests placements; admin approves anchors (post-submission). Revenue split on-chain; ad impressions logged off-chain and finalized on-chain for settlement.
+
+Compliance: ISRC generation stub (RISA mapping) included; SAMRO IDs for contributors recorded in metadata; admin sign-off before mint.
+
+Dev process: Codespaces + GitHub Agent HQ + Copilot for mission control. Human-in-the-loop checkpoints required for QC, ad approval, minting.
+
+
+
+---
+
+Now — GitHub-ready AGENTS.md + Mission templates
+
+Below is a full AGENTS.md you can paste into your repo root, followed by mission templates (YAML/Markdown files) for each major feature. Put mission files in /.github/agents/ or /agents/ so Agent HQ can pick them up. I include comments so you can tweak the tools/MCP references later.
+
+> Note: these are ready-to-use text files — copy each code block into its matching file path in your repo.
+
+
+
+
+---
+
+File: AGENTS.md
+
+# Mighty Verse — Agents Index (AGENTS.md)
+This repository contains agent mission templates and agent specifications to operate within GitHub Codespaces + Agent HQ. These agents are *assistants* to speed development — all actions require human approval for production-critical steps (QC, ad placement, minting).
+
+## How to use
+1. Place mission files in `/.github/agents/` or `/agents/`.
+2. Open Codespaces → Agent HQ → import mission (Plan Mode / Mission Control).
+3. Assign agent to run a mission; review changes in PRs; approve & merge.
+4. Human-in-the-loop checkpoints are mandatory for minting & ad approval.
+
+## Agent categories
+- `asset-review` — AI-assisted asset validation & tagging
+- `metadata-gen` — metadata JSON builder & manifest curator
+- `deck-view` — deck UI and 2.5D viewer scaffold
+- `mint-approval` — ApprovalRegistry + mint flow verification
+- `ad-placement` — AI ad anchor suggestions and admin editor generator
+- `murals` — multi-animator mural assembly & versioning
+- `campaigns` — sponsor campaign management & scheduling
+- `audio-workflows` — ISRC gen, audio tagging, split-sheet helper
+- `admin-dashboard` — admin / curator tool scaffolding
+- `animator-dashboard` — animator upload + depth map guidance
+- `rbac` — role-based access control scaffolding & policy enforcement
+- `contracts` — smart contract generation + test scaffolding
+- `ci-cd` — GitHub Actions & deployment missions
+- `security` — audit checklist & automated linting/tests
+
+---
+
+## Agent responsibilities (short)
+- **Only** propose code or metadata changes; **do not** auto-deploy to production without explicit admin sign-off.
+- Attach a human checklist to each PR for sensitive tasks.
+- Use deterministic settings (temperature 0) for code/metadata generation.
+
+---
+
+## Contact / Admin
+- Platform Lead: `Bhekithemba Simelane`
+- DevOps Admin Multisig: `GnosisSafe:0x...`
+- Repo Owner / Emergency contact: `owner@example.com`
+
+
+---
+
+Missions: full list (copy each into /.github/agents/ as separate files)
+
+Below I produce mission files. Each mission starts with a short YAML header for Agent HQ and then a task section. You may need to adapt the header to your specific Agent HQ / MCP schema; these are human-friendly mission templates.
+
+
+---
+
+Mission: asset-review.mission.md
+
+# asset-review.mission.md
+# Agent: Asset Review Agent
+# Purpose: Validate uploaded animation/video assets, run AI pre-scan (depth + segmentation + tags), and produce metadata suggestions and QC flags.
+
+## Header
+agent: asset-review
+version: 1.0
+roles: [ai, reviewer]
+modes: [plan, execute]
+tools: [MiDaS (depth), SAM (segmentation), CLIP (visual tags), Whisper (audio transcription)]
+outputs:
+  - metadata_suggestion.json
+  - qc_report.json
+  - suggested_ad_anchors.json
+
+## Task
+1. Input: asset CID (IPFS), manifest.json (contains frame_rate, duration, contributor list).
+2. Actions:
+   - Fetch asset from IPFS.
+   - Run **MiDaS** depth estimation on provided layer(s) (or frames if video).
+   - Run **SAM/YOLO** to identify main subjects, motion zones, and safe zones.
+   - Run **Whisper** (or provided transcript) to transcribe audio and produce tempo / BPM estimate.
+   - Run **CLIP** for scene mood / style classification.
+   - Produce `metadata_suggestion.json` conforming to `metadata_schema.json` (include confidences).
+   - Produce `qc_report.json` with `confidence_score` (0–1), issues (file corruption, missing layers, too long, fps mismatch).
+   - Produce `suggested_ad_anchors.json` with up to 6 candidate anchors (x,y normalized, z suggestion, frame_start, frame_end, confidence, reason).
+3. Human-in-loop:
+   - If `confidence_score < 0.8` OR any critical issue, create PR labeled `asset:needs-review` and assign admin curator.
+4. Output storage:
+   - Pin the three JSON files to nft.storage and log returned CIDs in the asset's pending manifest (store at `/data/pending/{asset_id}/`).
+
+## Acceptance Criteria (for human admin)
+- Confirmed metadata matches creative intent.
+- No obstructive ad anchors overlapping faces or lyrics text.
+- If approved, mark asset status `QC:approved` else `QC:needs-fix`.
+
+
+---
+
+Mission: metadata-generation.mission.md
+
+# metadata-generation.mission.md
+# Agent: Metadata Generation Agent
+# Purpose: Build canonical metadata manifest for a card and pin to IPFS.
+
+agent: metadata-gen
+version: 1.0
+roles: [builder, signer]
+tools: [node, nft.storage, ajv]
+outputs:
+  - metadata.json
+  - manifest_cid
+
+## Task
+1. Inputs:
+   - metadata_suggestion.json (from asset-review)
+   - ad_anchor_cid (optional)
+   - depth_map_cid
+   - contributor wallet addresses and SAMRO IDs
+2. Actions:
+   - Validate suggestion JSON with `metadata_schema.json` using `ajv`.
+   - Enforce required fields (card_id, project, animator_version, layers, timestamp, sha256).
+   - Compute/verify `sha256` for asset by fetching file.
+   - Merge ad_anchor_cid, depth_map_cid into final `metadata.json`.
+   - If data passes validation, sign manifest locally using admin EIP-712 skeleton (prepare signature payload only; do not auto-sign on main).
+   - Pin `metadata.json` to nft.storage and return `manifest_cid`.
+3. Human-in-loop:
+   - Create PR that contains `metadata.json` and `manifest_cid`. Admin must review and add final EIP-712 signature to approve.
+4. Output:
+   - Place `metadata.json` under `/data/manifest/{card_id}/metadata.json`.
+   - Add `manifest_cid` to `pending_registry.json` for minting queue.
+
+Acceptance:
+- Schema validated and PR created with all fields present.
+
+
+---
+
+Mission: ad-placement.mission.md
+
+# ad-placement.mission.md
+# Agent: AI Ad Placement Advisor
+# Purpose: Suggest ad anchor positions and render a preview layer for admin review.
+
+agent: ad-placement
+version: 1.0
+roles: [ai, admin]
+tools: [SAM, YOLOv8, R3F preview generator]
+outputs:
+  - suggested_ad_anchors.json
+  - preview_scene (R3F sample with anchors overlay)
+
+## Task
+1. Input: metadata_suggestion.json, asset CID, depth_map_cid.
+2. Actions:
+   - Identify candidate billboards, static props, negative space via segmentation/motion masks.
+   - Score each candidate by visibility, duration on-screen, likelihood to occlude important content.
+   - Output `suggested_ad_anchors.json` with: anchor_id, x, y, z, start_frame, end_frame, reason, confidence.
+   - Generate a lightweight R3F JSON preview that admin can load into AdAnchorEditor to see anchors overlaid on the scene.
+3. Human-in-loop:
+   - Admin opens editor, accepts/edits anchors. Final anchors saved as `ad_anchor.json` and pinned to IPFS.
+4. Output:
+   - Save anchor CID to `metadata.json` via `metadata-gen` or patch workflow.
+
+Acceptance:
+- Admin must approve and sign anchors before minting. No automatic ad injection without sign-off.
+
+
+---
+
+Mission: deck-viewer.mission.md
+
+# deck-viewer.mission.md
+# Agent: Deck Viewer Generator
+# Purpose: Scaffold & update React components for DeckViewer and HeroCanvas (2.5D).
+
+agent: deck-view
+version: 1.0
+roles: [frontend]
+tools: [React Three Fiber, drei, GSAP, Framer Motion]
+outputs:
+  - HeroCanvas.tsx
+  - DeckViewer.tsx
+  - DeckCard.tsx
+  - sample integration page /app/deck/[deckId].tsx
+
+## Task
+1. Implement HeroCanvas.tsx:
+   - Accepts layers from metadata (bg, mg, fg) plus depth_map_cid.
+   - Renders planes with textures; uses depth_map to set z-offsets.
+   - Provides popOut(index) animation and supports highlight anchors overlay (from ad_anchor.json).
+   - Exposes API to switch animator_version and load different decks.
+2. Implement DeckViewer.tsx:
+   - Loads /data/manifest index; renders cards in a responsive grid; supports shuffle, filter by tag, and "Play only this artist" behavior.
+3. Tests:
+   - Unit tests for component props, and a Playwright e2e test for "play card" and "pop-out".
+4. Deliverables:
+   - Add storybook stories for visual verification.
+
+Human review:
+- UX should be smooth; performance fallback for mobile lite mode (no depth shader).
+
+
+---
+
+Mission: mint-approval.mission.md
+
+# mint-approval.mission.md
+# Agent: Mint Approval Agent
+# Purpose: Verify mint preconditions, coordinate credit burn (or admin signature), and submit mint transaction on testnet.
+
+agent: mint-approval
+version: 1.0
+roles: [contract, ops, admin]
+tools: [Hardhat, Ethers.js, OpenZeppelin]
+outputs:
+  - mint_tx.json
+  - tx_receipt
+
+## Task
+1. Input:
+   - manifest_cid (IPFS metadata)
+   - card_id, credits_required
+   - admin_approval_signature (EIP-712) OR credit token balance check
+2. Checks:
+   - Confirm metadata `QC:approved`.
+   - Confirm `ad_anchor_cid` present if campaign requires ad placement.
+   - Confirm `isrc` and `samro` fields present when audio included.
+   - Verify minter wallet has credits or admin signature present.
+3. Actions:
+   - If credits: call CreditToken.burnForMint(minter, credits); call NFTCollection.mintWithCredit(minter, manifest_cid, adminSigOptional).
+   - If signature: call NFTCollection.mintWithSignature(minter, manifest_cid, adminSig).
+4. Human-in-loop:
+   - Admin must confirm and sign via multisig before production mainnet mint.
+5. Output:
+   - Save `mint_tx.json` and `tx_receipt` to `/data/mints/{card_id}/`.
+
+Acceptance:
+- Token minted on testnet; receipt logged; indexer picks event for dashboard.
+
+
+---
+
+Mission: murals.mission.md
+
+# murals.mission.md
+# Agent: Mural Assembler
+# Purpose: Combine animator perspectives into mural templates, produce master timeline, and generate deck slices (cards).
+
+agent: murals
+version: 1.0
+roles: [curator, assembler]
+tools: [timeline editor script, R3F preview]
+outputs:
+  - mural_manifest.json
+  - deck_card_list.json
+
+## Task
+1. Inputs:
+   - multiple `metadata.json` for animator versions (futuristic, gritty).
+2. Actions:
+   - Validate timecodes/segments for main artist and feature artist segments.
+   - Assemble master mural timeline (default perspective) with mapping to animator versions.
+   - For each featured segment produce a `card` entry with `start_frame`, `end_frame`, `animator_version` and `manifest_cid`.
+   - Generate `mural_manifest.json` describing versions, timeline, and default deck order.
+3. Admin:
+   - Curator reviews assembled mural in R3F preview; finalizes default timeline.
+4. Output:
+   - Save `mural_manifest.json` and pin to IPFS.
+
+Acceptance:
+- Mural timeline must be continuous and each card mapped to a manifest with depth maps and ad anchors.
+
+
+---
+
+Mission: campaigns.mission.md
+
+# campaigns.mission.md
+# Agent: Campaign Manager
+# Purpose: Create sponsor campaigns, allocate ad slots across murals/cards, track sponsor spend & schedule.
+
+agent: campaigns
+version: 1.0
+roles: [ops, finance, admin]
+tools: [contracts, offchain ledger (CSV / Google Sheets), web dashboard]
+outputs:
+  - campaign_manifest.json
+  - campaign_payments.log
+
+## Task
+1. Input:
+   - sponsor details, brand assets, target murals/decks, budget, start/end dates.
+2. Actions:
+   - Assign available ad_anchor slots across selected cards; mark anchors as reserved (temporarily).
+   - Create `campaign_manifest.json` linking sponsor → reserved anchors → contract payment terms.
+   - On payment cleared (off-chain or on-chain), change anchor state from `reserved` → `active`.
+   - Record impressions / clicks via analytics service; aggregate for payout schedule.
+3. Human-in-loop:
+   - Finance confirms payment; admin finalizes anchor activation.
+4. Output:
+   - Campaign dashboard & payment logs; anchors updated in metadata.
+
+Acceptance:
+- Sponsor sees preview of placements in R3F preview; invoice generated for sponsor approval.
+
+
+---
+
+Mission: audio-workflows.mission.md
+
+# audio-workflows.mission.md
+# Agent: Audio Workflow Manager
+# Purpose: Handle ISRC generation, audio fingerprinting, tagging, and SAMRO integration.
+
+agent: audio-workflows
+version: 1.0
+roles: [audio-engineer, admin]
+tools: [Whisper (transcript), BPM detection script, ISRC stub, audio fingerprint lib]
+outputs:
+  - audio_metadata.json (tempo, key, duration)
+  - isrc_stub.txt
+  - samro_link_record.json
+
+## Task
+1. Inputs:
+   - audio asset CID(s), contributor list with SAMRO IDs.
+2. Actions:
+   - Run audio transcription (Whisper) → lyrics for split-sheet automation.
+   - Detect BPM & key using audio analysis.
+   - Create split-sheet suggestion based on metadata and contributor roles (AI-assisted).
+   - Generate RISA-compliant ISRC stub (patterned) and mark for admin RISA registration.
+   - Produce `audio_metadata.json` and pin to IPFS.
+3. Human-in-loop:
+   - Admin confirms ISRC finalization with RISA before mainnet mint.
+4. Output:
+   - Attach audio metadata to `metadata.json`.
+
+Acceptance:
+- All audio metadata present and ISRC reserved/pending RISA registration.
+
+
+---
+
+Mission: admin-dashboard.mission.md
+
+# admin-dashboard.mission.md
+# Agent: Admin Dashboard Builder
+# Purpose: Scaffold Admin UI for content review, ad anchor editor, mint queue, campaign management, and analytics.
+
+agent: admin-dashboard
+version: 1.0
+roles: [frontend, backend]
+tools: [Next.js, R3F, Tailwind]
+outputs:
+  - /app/admin/index.tsx
+  - AdAnchorEditor integrated
+  - MintQueue page with approve/deny actions
+  - Campaign Manager page
+
+## Task
+1. Implement pages:
+   - /admin/assets → pending assets list, QC report, quick preview
+   - /admin/ad-editor → open AdAnchorEditor for selected asset
+   - /admin/mint-queue → list manifests pending mint; buttons for "Request Signature", "Mint on Testnet"
+   - /admin/campaigns → campaign list & anchor reservations
+2. Role-based access: only Admin role can approve & sign.
+3. Integrate with EIP-712 signature flow (prepare payload; signature step is manual).
+4. Tests & storybook stories.
+
+Human-in-loop:
+- All approve actions require multi-sig confirmation in production.
+
+Acceptance:
+- Admin can complete full workflow from preview to mint request.
+
+
+---
+
+Mission: animator-dashboard.mission.md
+
+# animator-dashboard.mission.md
+# Agent: Animator Dashboard
+# Purpose: Create a simple animator portal for uploads, depth guidance, and status tracking.
+
+agent: animator-dashboard
+version: 1.0
+roles: [frontend]
+tools: [Next.js, nft.storage]
+outputs:
+  - /app/animator/index.tsx
+  - Upload flow connected to /api/pinToIPFS
+  - Upload checklist with required layer/export specs (png sequences, alpha, fps)
+  - Depth map instructions link to /colab/MightyDepth.ipynb
+
+## Task
+1. Upload form with validation for required files:
+   - bg.png, mg.png, fg.png or webm layers
+   - optional precomputed depth maps
+   - contributor info (wallet & SAMRO)
+2. On submit: pin files to nft.storage; create pending manifest and notify admin queue.
+3. Track status: pending → qc_review → approved → minted
+4. Simple messaging to admin for clarifications.
+
+Acceptance:
+- Animator sees clear checklist and status updates.
+
+
+---
+
+Mission: rbac.mission.md
+
+# rbac.mission.md
+# Agent: RBAC & Policy Agent
+# Purpose: Scaffold and enforce role-based access control for Admin, Curator, Animator, Sponsor, Viewer.
+
+agent: rbac
+version: 1.0
+roles: [ops, security]
+tools: [NextAuth (or Web3Auth), role middleware, Gnosis Safe]
+outputs:
+  - Access policy definitions
+  - Middleware for pages & API routes
+  - Admin role seeding script
+
+## Task
+1. Create roles: Admin, Curator, Animator, Sponsor, Viewer.
+2. Implement server-side middleware to gate:
+   - /admin/* (Admin only)
+   - /animator/* (Animator + Admin)
+   - /sponsor/* (Sponsor + Admin)
+3. Provide a UI to invite & manage roles (emails + wallet linking).
+4. Seed initial Admin(s) from env or multisig mapping.
+
+Acceptance:
+- All sensitive APIs gated & tested with unit tests.
+
+
+---
+
+Mission: isrc-generator.mission.md
+
+# isrc-generator.mission.md
+# Agent: ISRC Generator
+# Purpose: Provide an ISRC stub generation service and admin flow for RISA registration.
+
+agent: isrc-generator
+version: 1.0
+roles: [ops, admin]
+tools: [node script, admin approval flow]
+outputs:
+  - isrc_stub (format ZA-XXXX-YY-00001)
+  - admin registration checklist
+
+## Task
+1. Implement /scripts/generateIsrc.js that:
+   - Accepts registrant code (configurable) and sequence number.
+   - Produces ISRC in format: CCXXXYYNNNNN (documented).
+2. Provide admin UI to "reserve ISRC" (stores stub in pending manifest) and export CSV for RISA.
+3. After RISA confirmation, update metadata `isrc` field permanently and re-pin metadata.
+
+Human-in-loop:
+- Admin must confirm actual RISA registration before mainnet mint.
+
+Acceptance:
+- ISRC stubs generated and exported.
+
+
+---
+
+Mission: contracts.mission.md
+
+# contracts.mission.md
+# Agent: Contracts Generator
+# Purpose: Scaffold smart contracts, tests, and deployment scripts.
+
+agent: contracts
+version: 1.0
+roles: [solidity, test]
+tools: [Hardhat, OpenZeppelin]
+outputs:
+  - /contracts/CreditToken.sol
+  - /contracts/ApprovalRegistry.sol
+  - /contracts/MightyVerseAssets.sol (ERC-1155 or ERC-721 + ERC2981)
+  - /scripts/deploy.js
+  - /test/*.spec.js
+
+## Task
+1. Scaffold contracts with clear NatSpec docs and upgradeable pattern if needed.
+2. Create unit tests for credit deduction, mintWithSignature, and royalty splitting.
+3. Add a local hardhat script to simulate admin EIP-712 signature creation and mint flow.
+4. Add sample environment for Polygon Mumbai.
+
+Acceptance:
+- All tests pass locally; contracts deploy to testnet via provided script.
+
+
+---
+
+Mission: ci-cd.mission.md
+
+# ci-cd.mission.md
+# Agent: CI/CD Agent
+# Purpose: Create GitHub Actions workflows for build, test, lint, pinning metadata, and Vercel deploy.
+
+agent: ci-cd
+version: 1.0
+roles: [ci]
+tools: [GitHub Actions, Vercel]
+outputs:
+  - .github/workflows/ci.yml
+  - .github/workflows/pin-metadata.yml
+
+## Task
+1. CI Workflow:
+   - on: pull_request
+   - steps: checkout, node install, lint, run tests, build
+2. Pin Metadata Workflow:
+   - on: push to main
+   - steps: run /scripts/buildMetadata.js, pin to nft.storage (uses NFT_STORAGE_KEY), commit manifest CID, create release note
+3. Deploy:
+   - on merge to main: build and deploy to Vercel
+
+Acceptance:
+- Workflows run on PRs and main; artifacts visible in Actions.
+
+
+---
+
+Mission: security.mission.md
+
+# security.mission.md
+# Agent: Security/Audit Agent
+# Purpose: Generate security checklist for contracts & front-end; run automated scans and produce report.
+
+agent: security
+version: 1.0
+roles: [security]
+tools: [slither, mythx (optional), npm audit]
+outputs:
+  - security_report.md
+  - suggested fixes PR
+
+## Task
+1. Run static analyzers on contracts and JS libs.
+2. Check dependency vulnerabilities (npm audit).
+3. Run linter and format checks.
+4. Produce `security_report.md` summarizing findings with severity tags.
+5. If critical vulnerabilities found, open PRs with fixes.
+
+Human-in-loop:
+- All critical issues must be resolved prior to mainnet deployment.
+
+Acceptance:
+- Security report created and action items assigned.
+
+
+---
+
+Developer Playbook (concise, to paste into docs/playbook.md)
+
+# Mighty Verse Developer Playbook (Concise)
+- Platform model: Golden Shovel owns the platform; collaborators submit.
+- No native DBs: all assets & metadata pinned to IPFS (nft.storage), immutable manifests.
+- Sanity is marketing-only.
+- Use Codespaces + Agent HQ + Copilot for development missions. Agents propose changes; humans approve.
+- Asset flow:
+  1. Animator uploads assets (bg/mg/fg + optional depth maps).
+  2. Asset Review Agent runs AI pre-scan (depth, segmentation, tags).
+  3. Admin reviews/ad anchors in AdAnchorEditor; finalizes anchors.
+  4. Metadata Agent builds manifest.json; admin signs EIP-712 approval.
+  5. MintApproval Agent executes testnet mint (credits/signature).
+  6. Deck viewer displays minted card; campaign engine reserves anchors for sponsors.
+- Holographic viewer: React Three Fiber with depth map-based z offsets; pop-out animation via GSAP.
+- RBAC: admin/curator/animator/sponsor roles; multisig for production mint actions.
+- AI: use Google Colab / Hugging Face / local models for depth & tagging — agent outputs must be human-reviewed.
+- Testing: Hardhat tests for contracts; Playwright end-to-end for viewer QA.
+
+
+---
+
+What I’ll generate next (done automatically now)
+
+I already created the complete AGENTS.md and mission templates above. Next steps you can take right now:
+
+1. Create folder in repo: mkdir -p .github/agents
+
+
+2. Paste each *.mission.md file into .github/agents/ (file names as above).
+
+
+3. Commit AGENTS.md into repo root.
+
+
+4. Open Codespaces → Agent HQ → import mission files and run Plan Mode for each mission.
+
+
+
+
+---
+
+Notes & Safety / Governance
+
+Human approval required: Agents propose and scaffold. Human sign-off is required for any mint, ad activation, and real money movement.
+
+Privacy & IP: Store only public asset files on IPFS. PII must be stored off-chain following policy and encrypted if required.
+
+Audit: Contracts must be audited before mainnet deployments; add security.mission to your release checklist.
+
+
+
+---
+
+If you want I can now:
+
+Generate these mission files as downloadable text files (or push them to a repo if you authorize).
+
+Or produce two immediate code artifacts from the missions: HeroCanvas.tsx and AdAnchorEditor.tsx (most-requested next steps).
+
+
+Pick either:
+
+A — I push all mission files into a single Markdown bundle for you to copy.
+
+B — Produce HeroCanvas.tsx + AdAnchorEditor.tsx now (ready-to-paste into your Codespace).
+
+
+I’ll proceed with B automatically if you don’t respond — but say A if you prefer the mission file bundle first. Which should I produce right now?
+
+
+
+

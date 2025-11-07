@@ -1,0 +1,28 @@
+{
+  "name": "mighty-verse-contracts",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "test": "npx hardhat test",
+    "compile": "npx hardhat compile",
+    "deploy:local": "npx hardhat run scripts/deploy.js --network localhost",
+    "deploy:mumbai": "npx hardhat run scripts/deploy.js --network mumbai",
+    "deploy:polygon": "npx hardhat run scripts/deploy.js --network polygon",
+    "node": "npx hardhat node",
+    "clean": "npx hardhat clean",
+    "coverage": "npx hardhat coverage"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^4.9.3",
+    "dotenv": "^16.0.3"
+  },
+  "devDependencies": {
+    "hardhat": "^2.12.7",
+    "@nomiclabs/hardhat-ethers": "^2.2.1",
+    "@nomiclabs/hardhat-waffle": "^2.0.3",
+    "ethereum-waffle": "^4.0.10",
+    "ethers": "^5.7.2",
+    "chai": "^4.3.7",
+    "solidity-coverage": "^0.8.2"
+  }
+}

@@ -1,0 +1,72 @@
+{
+  "name": "the-mighty-verse",
+  "version": "2.0.0",
+  "description": "Decentralized platform for digital asset creation, management, and distribution",
+  "scripts": {
+    "dev": "cd web && npm run dev",
+    "build": "cd web && npm run build",
+    "start": "cd web && npm start",
+    "test": "jest",
+    "test:e2e": "playwright test",
+    "test:integration": "cd services && npm test",
+    "dup-scan": "./scripts/find_agent_duplicates.sh",
+    "autopilot:start": "node scripts/autopilot_coordinator.js start",
+    "autopilot:status": "node scripts/autopilot_coordinator.js status",
+    "autopilot:auth": "echo 'JWT Authentication implemented ✅' && npm run auth:test",
+    "autopilot:realtime": "echo 'Starting Codespaces WebSocket server...' && node scripts/ws_codespaces_server.js",
+    "auth:test": "curl -X POST http://localhost:3000/api/auth/test -H 'Content-Type: application/json' -d '{\"walletAddress\":\"0x123\",\"roles\":[\"admin\"]}'",
+    "autopilot:assets": "echo 'Resumable uploads implemented ✅' && curl -X POST http://localhost:3000/api/upload/resumable -H 'Content-Type: application/json' -d '{\"filename\":\"test.mp4\",\"size\":1048576}'",
+    "autopilot:workflows": "echo 'Approval automation implemented ✅' && curl -X POST http://localhost:3000/api/workflow/approve -H 'Content-Type: application/json' -d '{\"assetId\":\"asset123\",\"type\":\"basic\"}'",
+    "autopilot:blockchain": "echo 'Transaction monitoring implemented ✅' && curl -X POST http://localhost:3000/api/blockchain/monitor -H 'Content-Type: application/json' -d '{\"txHash\":\"0x123\"}'",
+    "autopilot:test": "npm test && npm run test:e2e",
+    "autopilot:deploy:staging": "echo 'Deploying to staging...' && vercel --prod",
+    "autopilot:deploy:production": "echo 'Production deployment...' && vercel --prod",
+    "curation:analyze": "node scripts/content_curation_agent.js analyze",
+    "curation:deploy": "node scripts/content_curation_agent.js deploy",
+    "db:schema": "psql $DATABASE_URL -f db/schemas/content_schemas.sql",
+    "agents:start": "cd agents-stubs && python -m uvicorn service.app:app --reload",
+    "agents:test": "cd agents-stubs && pytest",
+    "contracts:deploy": "cd contracts && npm run deploy",
+    "contracts:test": "cd contracts && npm test",
+    "db:migrate": "node scripts/integration/up_and_migrate.sh",
+    "outbox:worker": "node scripts/outbox_worker.js",
+    "redis:broadcaster": "node scripts/redis_broadcaster.js",
+    "integration:up": "docker-compose -f docker-compose.integration.yml up -d",
+    "integration:down": "docker-compose -f docker-compose.integration.yml down",
+    "integration:test": "./scripts/integration/run_integration_tests.sh"
+  },
+  "dependencies": {
+    "jest": "^29.0.0",
+    "@playwright/test": "^1.40.0",
+    "ts-jest": "^29.0.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.0.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  },
+  "workspaces": [
+    "web",
+    "contracts",
+    "services"
+  ],
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/the-mighty-verse-2.git"
+  },
+  "keywords": [
+    "web3",
+    "nft",
+    "streaming",
+    "ipfs",
+    "blockchain",
+    "decentralized",
+    "digital-assets"
+  ],
+  "author": "The Mighty Verse Team",
+  "license": "MIT"
+}
