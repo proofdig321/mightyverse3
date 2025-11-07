@@ -20,6 +20,8 @@ export async function POST(request: NextRequest) {
       job_type: 'metadata_embedding',
       content_id: assetId,
       content_type: 'asset',
+      status: 'queued',
+      progress: 0,
       input_data: {
         title: asset.name,
         artist: asset.creator_wallet,

@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
       );
       
       // Create new file with embedded metadata
-      processedFile = new File([embeddedBuffer], file.name, { type: file.type });
+      processedFile = new File([new Uint8Array(embeddedBuffer)], file.name, { type: file.type });
       console.log('Metadata embedded successfully');
     } catch (embedError) {
       console.warn('Metadata embedding failed, using original file:', embedError);
