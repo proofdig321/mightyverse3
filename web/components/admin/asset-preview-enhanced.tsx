@@ -122,13 +122,25 @@ export default function AssetPreviewEnhanced({
       default:
         return (
           <div className="aspect-square bg-white/5 rounded-xl overflow-hidden">
-            <MediaRenderer
-              fileCid={asset.file_cid}
-              thumbnailCid={asset.thumbnail_cid}
-              mimeType={asset.metadata?.mime_type}
-              fileName={asset.name}
-              className="w-full h-full object-cover"
-            />
+            {/* HLS Video Player for Livepeer assets */}
+            {(asset as any).livepeer_playback_url && asset.asset_type === 'video' ? (
+              <video
+                controls
+                className="w-full h-full object-cover"
+                src={(asset as any).livepeer_playback_url}
+                poster={asset.thumbnail_cid ? `https://gateway.pinata.cloud/ipfs/${asset.thumbnail_cid}` : undefined}
+              >
+                Your browser does not support video playback.
+              </video>
+            ) : (
+              <MediaRenderer
+                fileCid={asset.file_cid}
+                thumbnailCid={asset.thumbnail_cid}
+                mimeType={asset.metadata?.mime_type}
+                fileName={asset.name}
+                className="w-full h-full object-cover"
+              />
+            )}
           </div>
         );
     }

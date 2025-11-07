@@ -206,6 +206,30 @@ export default function AdminUploadPage() {
         }
       });
 
+      setUploadProgress(95);
+      
+      // Auto-import to Livepeer for video/audio assets
+      if (form.type === 'video' || form.type === 'audio') {
+        try {
+          const livepeerResponse = await fetch('/api/livepeer/import', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              ipfsCid: fileCid,
+              name: form.name,
+              uploaderWallet: wallet
+            })
+          });
+          
+          if (livepeerResponse.ok) {
+            console.log('Auto-imported to Livepeer for streaming');
+          }
+        } catch (error) {
+          console.warn('Livepeer auto-import failed:', error);
+          // Continue - asset still usable via IPFS
+        }
+      }
+      
       setUploadProgress(100);
       setUploadedAsset({ name: form.name, type: form.type });
       setUploadSuccess(true);

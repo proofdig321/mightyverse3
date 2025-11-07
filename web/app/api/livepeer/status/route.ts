@@ -1,36 +1,44 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { supabaseServer } from '../../../../utils/supabase/server';
+import { NextResponse } from 'next/server';
+import { enhancedDataManager } from '../../../../utils/storage/enhanced-data-store';
+import { checkLivepeerStatus } from '../../../../utils/livepeer/import-service';
 
-export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
-  const assetId = searchParams.get('assetId');
-  
-  if (!assetId) {
-    return NextResponse.json({ error: 'Asset ID required' }, { status: 400 });
-  }
-
+export async function POST() {
   try {
-    const response = await fetch(`https://livepeer.studio/api/asset/${assetId}`, {
-      headers: { 'Authorization': `Bearer ${process.env.LIVEPEER_API_KEY}` }
-    });
-    
-    if (!response.ok) {
-      throw new Error(`Livepeer API error: ${response.status}`);
+    // Get assets with pending Livepeer processing
+    const assets = await enhancedDataManager.getData('assets');
+    const pendingAssets = assets.filter(asset => 
+      asset.livepeer_asset_id && 
+      (asset.livepeer_status === 'processing' || asset.livepeer_status === 'waiting')
+    );
+
+    let updatedCount = 0;
+
+    for (const asset of pendingAssets) {
+      try {
+        const status = await checkLivepeerStatus(asset.livepeer_asset_id);
+        
+        if (status.phase === 'ready' && asset.livepeer_status !== 'ready') {
+          await enhancedDataManager.updateItem('assets', asset.id, {
+            livepeer_status: 'ready'
+          });
+          updatedCount++;
+          console.log(`Asset ${asset.id} transcoding completed`);
+        }
+      } catch (error) {
+        console.error(`Status check failed for asset ${asset.id}:`, error);
+      }
     }
-    
-    const asset = await response.json();
-    
-    await supabaseServer
-      .from('asset_streams')
-      .update({ 
-        status: asset.status?.phase || 'processing',
-        updated_at: new Date().toISOString()
-      })
-      .eq('livepeer_asset_id', assetId);
-      
-    return NextResponse.json(asset);
+
+    return NextResponse.json({ 
+      success: true, 
+      checked: pendingAssets.length,
+      updated: updatedCount
+    });
   } catch (error) {
-    console.error('Status check error:', error);
-    return NextResponse.json({ error: 'Status check failed' }, { status: 500 });
+    console.error('Status check batch failed:', error);
+    return NextResponse.json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
   }
 }
