@@ -100,7 +100,13 @@ export async function POST(request: NextRequest) {
       success: true,
       assetId: assetData.id,
       livepeerAssetId: uploadRequest.assetId,
-      message: 'Upload successful, transcoding in progress'
+      message: 'Upload successful, transcoding in progress',
+      details: {
+        fileSize: `${(file.size / 1024 / 1024).toFixed(1)} MB`,
+        mimeType: file.type,
+        thumbnailUploaded: !!thumbnailCid,
+        metadataEmbedded: processedFile !== file
+      }
     });
 
   } catch (error) {

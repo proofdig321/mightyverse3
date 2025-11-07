@@ -9,7 +9,7 @@ import { clearSession } from '../utils/auth/simple-auth';
 export default function Navigation() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const pathname = usePathname();
-  const { wallet, isAdmin, isAnimator } = useRBAC();
+  const { wallet, isAdmin, isAnimator, disconnectWallet } = useRBAC();
 
   const mainNavItems = [
     { href: '/murals', label: 'Murals', icon: '◉' },
@@ -79,8 +79,8 @@ export default function Navigation() {
               {wallet ? (
                 <button
                   onClick={() => {
+                    disconnectWallet();
                     clearSession();
-                    window.location.reload();
                   }}
                   className="bg-gradient-to-r from-red-600 to-red-700 border-0 rounded-lg py-2 px-4 text-white font-medium text-sm"
                 >

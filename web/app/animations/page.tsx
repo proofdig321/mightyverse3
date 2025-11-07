@@ -40,12 +40,11 @@ export default function Animations() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(9);
   
-  // Get only approved AND curated animations/videos
+  // Get approved animations/videos (no curation gate like murals/campaigns)
   const filteredAssets = assets.filter(asset => {
     const isAnimation = asset.type === 'animation' || asset.type === 'video' || asset.mimeType?.startsWith('video/');
     const isApproved = asset.status === 'approved';
-    const isCurated = asset.curated === true;
-    return isAnimation && isApproved && isCurated;
+    return isAnimation && isApproved;
   });
 
   const totalPages = Math.ceil(filteredAssets.length / itemsPerPage);
@@ -61,13 +60,13 @@ export default function Animations() {
       // store raw assets locally
       setAssets(data || []);
 
-      // pick a featured curated animation to show by default
-      const firstCurated = (data || []).find((asset: Asset) => {
+      // pick a featured approved animation to show by default
+      const firstApproved = (data || []).find((asset: Asset) => {
         const isAnimation = asset.type === 'animation' || asset.type === 'video' || asset.mimeType?.startsWith('video/');
-        return isAnimation && asset.status === 'approved' && asset.curated === true;
+        return isAnimation && asset.status === 'approved';
       });
 
-      if (firstCurated) setSelectedAsset(firstCurated);
+      if (firstApproved) setSelectedAsset(firstApproved);
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error('Failed to load assets:', err);

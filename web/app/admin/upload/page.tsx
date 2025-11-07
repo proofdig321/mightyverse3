@@ -63,6 +63,19 @@ export default function AdminUploadPage() {
       return;
     }
     
+    // Validate Livepeer-compatible formats for video/audio
+    if (file.type.startsWith('video/')) {
+      const supportedVideoTypes = ['video/mp4', 'video/webm', 'video/mov', 'video/avi'];
+      if (!supportedVideoTypes.includes(file.type)) {
+        console.warn(`Video format ${file.type} may not be compatible with Livepeer. Supported: MP4, WebM, MOV, AVI`);
+      }
+    } else if (file.type.startsWith('audio/')) {
+      const supportedAudioTypes = ['audio/mp3', 'audio/wav', 'audio/flac', 'audio/ogg', 'audio/aac'];
+      if (!supportedAudioTypes.includes(file.type)) {
+        console.warn(`Audio format ${file.type} may not be compatible with Livepeer. Supported: MP3, WAV, FLAC, OGG, AAC`);
+      }
+    }
+    
     setForm(prev => ({ ...prev, file }));
     
     // Auto-generate ISRC and extract metadata for audio/video

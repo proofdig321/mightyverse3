@@ -9,6 +9,7 @@ interface RBACContextType {
   wallet: string | null;
   loading: boolean;
   connectWallet: (walletAddress?: string) => Promise<void>;
+  disconnectWallet: () => void;
 }
 
 const RBACContext = createContext<RBACContextType>({
@@ -17,20 +18,28 @@ const RBACContext = createContext<RBACContextType>({
   isCurator: false,
   wallet: null,
   loading: false,
-  connectWallet: async (walletAddress?: string) => {}
+  connectWallet: async (walletAddress?: string) => {},
+  disconnectWallet: () => {}
 });
 
 export function RBACProvider({ children }: { children: ReactNode }) {
+  const [isConnected, setIsConnected] = React.useState(true);
+  
   // Simplified RBAC for build compatibility
   const value = {
-    isAdmin: true, // Mock admin for development
-    isAnimator: true,
-    isCurator: true, // Mock curator for development
-    wallet: "0x860Ec697167Ba865DdE1eC9e172004100613e970",
+    isAdmin: isConnected, // Mock admin when connected
+    isAnimator: isConnected,
+    isCurator: isConnected, // Mock curator when connected
+    wallet: isConnected ? "0x860Ec697167Ba865DdE1eC9e172004100613e970" : null,
     loading: false,
     connectWallet: async (walletAddress?: string) => {
       // Mock wallet connection for development
       console.log('Mock wallet connection', walletAddress);
+      setIsConnected(true);
+    },
+    disconnectWallet: () => {
+      console.log('Mock wallet disconnect');
+      setIsConnected(false);
     }
   };
 
