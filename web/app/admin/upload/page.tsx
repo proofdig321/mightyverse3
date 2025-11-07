@@ -33,17 +33,11 @@ async function directLivepeerUpload(file: File, name: string, thumbnail: File | 
   // Use client-side API key (same as IPFS pattern)
   const LIVEPEER_API_KEY = process.env.NEXT_PUBLIC_LIVEPEER_API_KEY || '99764289-df40-4cba-ab77-3105df4bf7a9';
   
-  // Step 1: Request upload URL from Livepeer (direct API call)
-  const uploadResponse = await fetch('https://livepeer.studio/api/asset/request-upload', {
+  // Step 1: Request upload URL via proxy (avoids CORS)
+  const uploadResponse = await fetch('/api/livepeer/proxy-upload', {
     method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${LIVEPEER_API_KEY}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      name: name,
-      storage: { ipfs: true }
-    })
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: name })
   });
   
   if (!uploadResponse.ok) {
