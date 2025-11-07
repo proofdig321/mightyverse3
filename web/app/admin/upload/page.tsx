@@ -109,7 +109,15 @@ async function directLivepeerUpload(file: File, name: string, thumbnail: File | 
       reject(new Error('Direct Livepeer upload failed'));
     });
 
-    xhr.open('PUT', uploadData.url);
+    // Use TUS resumable endpoint if available (more reliable)
+    const uploadUrl = uploadData.tusEndpoint || uploadData.url;
+    const method = uploadData.tusEndpoint ? 'POST' : 'PUT';
+    
+    xhr.open(method, uploadUrl);
+    if (uploadData.tusEndpoint) {
+      xhr.setRequestHeader('Tus-Resumable', '1.0.0');
+      xhr.setRequestHeader('Upload-Length', file.size.toString());
+    }
     xhr.send(file);
   });
 }
