@@ -210,6 +210,33 @@ class MediaTagger {
   }
 
   /**
+   * Embed metadata into video file (client-side preparation)
+   */
+  async prepareMetadataForEmbedding(metadata: {
+    title: string;
+    artist: string;
+    description?: string;
+    isrc?: string;
+    tags?: string[];
+    category?: string;
+  }): Promise<string> {
+    // Prepare XMP metadata string for server-side embedding
+    const xmpMetadata = {
+      'dc:title': metadata.title,
+      'dc:creator': metadata.artist,
+      'dc:description': metadata.description || '',
+      'xmp:Label': metadata.category || '',
+      'dc:subject': metadata.tags || [],
+      'xmpDM:releaseDate': new Date().toISOString(),
+      'mighty:isrc': metadata.isrc || '',
+      'mighty:platform': 'The Mighty Verse',
+      'mighty:version': '1.0'
+    };
+    
+    return JSON.stringify(xmpMetadata);
+  }
+
+  /**
    * Generate thumbnail from video file
    */
   async generateVideoThumbnail(file: File, timeOffset: number = 1): Promise<Blob> {

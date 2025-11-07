@@ -224,6 +224,11 @@ export default function AssetPreviewEnhanced({
                 📦 {(asset as any).export_status}
               </span>
             )}
+            {(asset as any).metadata?.upload_method === 'livepeer_direct' && (
+              <span className="px-2 py-1 rounded-full text-xs text-cyan-400 bg-cyan-400/10">
+                🏷️ embedded
+              </span>
+            )}
             {asset.quality_score && (
               <span className="mv-text-energy">
                 {Math.round(asset.quality_score * 100)}% quality

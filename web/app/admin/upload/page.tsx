@@ -163,15 +163,16 @@ export default function AdminUploadPage() {
           console.log('Attempting Livepeer direct upload...');
           const livepeerFormData = new FormData();
           livepeerFormData.append('file', form.file);
+          if (form.thumbnail) {
+            livepeerFormData.append('thumbnail', form.thumbnail);
+          }
           livepeerFormData.append('name', form.name);
           livepeerFormData.append('assetType', form.type);
           livepeerFormData.append('creatorWallet', wallet || '');
-          livepeerFormData.append('metadata', JSON.stringify({
-            ...form.metadata,
-            description: form.description,
-            category: form.category,
-            tags: form.tags
-          }));
+          livepeerFormData.append('category', form.category);
+          livepeerFormData.append('description', form.description);
+          livepeerFormData.append('tags', JSON.stringify(form.tags));
+          livepeerFormData.append('metadata', JSON.stringify(form.metadata));
 
           const livepeerResponse = await fetch('/api/livepeer/upload', {
             method: 'POST',
