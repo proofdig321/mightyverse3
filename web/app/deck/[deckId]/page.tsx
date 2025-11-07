@@ -91,7 +91,10 @@ export default function DeckViewer({ params }: { params: { deckId: string } }) {
         // Update animations and sync with database
         if (deck) {
           enhancedDataManager.updateItem('decks', deck.id, {
-            last_played: new Date().toISOString()
+            metadata: {
+              ...deck.metadata,
+              last_played: new Date().toISOString()
+            }
           }).catch(console.warn);
         }
       }, 5000); // Update every 5 seconds

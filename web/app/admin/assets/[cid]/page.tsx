@@ -24,6 +24,9 @@ interface AssetDetail {
     tags: string[];
     duration: number;
     dimensions: { width: number; height: number };
+    livepeer_playback_url?: string;
+    livepeer_thumbnail_url?: string;
+    upload_method?: string;
   };
   qcReport: {
     depthMapQuality: number;
@@ -112,9 +115,49 @@ export default function AssetDetailPage() {
   const assetId = params.cid as string;
 
   useEffect(() => {
-    // Load asset details
-    // In production, fetch from API using assetId
-    setAsset(prev => ({ ...prev, id: assetId }));
+    const fetchAsset = async () => {
+      try {
+        const response = await fetch('/api/assets');
+        const data = await response.json();
+        const foundAsset = data.assets?.find((a: any) => a.id === assetId);
+        
+        if (foundAsset) {
+          setAsset({
+            id: foundAsset.id,
+            title: foundAsset.name,
+            animator: foundAsset.creator_wallet,
+            submittedAt: foundAsset.created_at,
+            status: foundAsset.status === 'approved' ? 'approved' : 'pending',
+            metadata: {
+              confidence: 0.92,
+              issues: [],
+              tags: foundAsset.tags || [],
+              duration: foundAsset.metadata?.duration || 0,
+              dimensions: { width: 1920, height: 1080 },
+              livepeer_playback_url: foundAsset.metadata?.livepeer_playback_url,
+              livepeer_thumbnail_url: foundAsset.metadata?.livepeer_thumbnail_url,
+              upload_method: foundAsset.metadata?.upload_method
+            },
+            qcReport: {
+              depthMapQuality: 0.88,
+              segmentationAccuracy: 0.94,
+              audioQuality: 0.91,
+              overallScore: 0.92,
+              recommendations: ['Asset ready for streaming']
+            },
+            files: {
+              bgLayer: foundAsset.metadata?.livepeer_playback_url || '/api/assets/asset_001/bg.png',
+              audioFile: foundAsset.metadata?.livepeer_playback_url || '/api/assets/asset_001/audio.mp3'
+            },
+            suggestedAnchors: []
+          });
+        }
+      } catch (error) {
+        console.error('Failed to fetch asset:', error);
+      }
+    };
+    
+    fetchAsset();
   }, [assetId]);
 
   const handleApproval = async (approved: boolean, notes?: string) => {

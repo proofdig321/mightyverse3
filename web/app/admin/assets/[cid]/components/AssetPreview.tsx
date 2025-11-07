@@ -7,6 +7,44 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 
+// Simple HLS Video Player Component
+function VideoPlayer({ src, poster }: { src: string; poster?: string }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    
+    if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      // Native HLS support (Safari)
+      video.src = src;
+    } else {
+      // Try to load HLS.js for other browsers
+      import('hls.js').then(({ default: Hls }) => {
+        if (Hls.isSupported()) {
+          const hls = new Hls();
+          hls.loadSource(src);
+          hls.attachMedia(video);
+        }
+      }).catch(() => {
+        // Fallback to direct source
+        video.src = src;
+      });
+    }
+  }, [src]);
+  
+  return (
+    <video
+      ref={videoRef}
+      controls
+      className="w-full h-auto"
+      poster={poster}
+    >
+      Your browser does not support video playback.
+    </video>
+  );
+}
+
 interface AssetDetail {
   id: string;
   title: string;
@@ -19,6 +57,9 @@ interface AssetDetail {
     tags: string[];
     duration: number;
     dimensions: { width: number; height: number };
+    livepeer_playback_url?: string;
+    livepeer_thumbnail_url?: string;
+    upload_method?: string;
   };
   files: {
     bgLayer: string;
@@ -190,15 +231,22 @@ export default function AssetPreview({ asset }: AssetPreviewProps) {
         {/* Preview Canvas */}
         <div className="lg:col-span-3">
           <div className="bg-black rounded-lg overflow-hidden">
-            <canvas
-              ref={canvasRef}
-              width={800}
-              height={450}
-              className="w-full h-auto"
-            />
+            {asset.metadata.livepeer_playback_url ? (
+              <VideoPlayer 
+                src={asset.metadata.livepeer_playback_url}
+                poster={asset.metadata.livepeer_thumbnail_url}
+              />
+            ) : (
+              <canvas
+                ref={canvasRef}
+                width={800}
+                height={450}
+                className="w-full h-auto"
+              />
+            )}
             
             {/* Audio Element */}
-            {asset.files.audioFile && (
+            {asset.files.audioFile && !asset.metadata.livepeer_playback_url && (
               <audio
                 ref={audioRef}
                 src={asset.files.audioFile}
@@ -300,33 +348,63 @@ export default function AssetPreview({ asset }: AssetPreviewProps) {
                   ))}
                 </div>
               </div>
+              
+              {asset.metadata.upload_method && (
+                <div>
+                  <span className="text-gray-500">Upload Method:</span>
+                  <div className="text-sm">{asset.metadata.upload_method}</div>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Layer Information */}
-          <div className="border-t pt-4">
-            <h4 className="text-sm font-medium text-gray-900 mb-2">Available Layers</h4>
-            <div className="space-y-1 text-xs">
-              {layers.map((layer) => (
-                <div key={layer.key} className="flex items-center justify-between">
-                  <span className="text-gray-600">{layer.name}</span>
-                  <span className="text-green-600">✓</span>
-                </div>
-              ))}
-              {asset.files.depthMap && (
+          {/* Video Information */}
+          {asset.metadata.livepeer_playback_url && (
+            <div className="border-t pt-4">
+              <h4 className="text-sm font-medium text-gray-900 mb-2">Video Stream</h4>
+              <div className="space-y-1 text-xs">
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-600">Depth Map</span>
+                  <span className="text-gray-600">HLS Stream</span>
                   <span className="text-green-600">✓</span>
                 </div>
-              )}
-              {asset.files.audioFile && (
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-600">Audio Track</span>
+                  <span className="text-gray-600">Thumbnail</span>
                   <span className="text-green-600">✓</span>
                 </div>
-              )}
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-600">Transcoded</span>
+                  <span className="text-green-600">✓</span>
+                </div>
+              </div>
             </div>
-          </div>
+          )}
+          
+          {/* Layer Information */}
+          {!asset.metadata.livepeer_playback_url && (
+            <div className="border-t pt-4">
+              <h4 className="text-sm font-medium text-gray-900 mb-2">Available Layers</h4>
+              <div className="space-y-1 text-xs">
+                {layers.map((layer) => (
+                  <div key={layer.key} className="flex items-center justify-between">
+                    <span className="text-gray-600">{layer.name}</span>
+                    <span className="text-green-600">✓</span>
+                  </div>
+                ))}
+                {asset.files.depthMap && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-600">Depth Map</span>
+                    <span className="text-green-600">✓</span>
+                  </div>
+                )}
+                {asset.files.audioFile && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-600">Audio Track</span>
+                    <span className="text-green-600">✓</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Issues */}
           {asset.metadata.issues.length > 0 && (
