@@ -265,8 +265,8 @@ export default function AdminUploadPage() {
             fileType: form.file.type
           });
           
-          // For large files (>25MB), use direct Livepeer upload to bypass server limits
-          const useDirect = form.file.size > 25 * 1024 * 1024;
+          // For large files (>4MB), use direct Livepeer upload to bypass Vercel limits
+          const useDirect = form.file.size > 4 * 1024 * 1024;
           
           if (useDirect) {
             console.log('Using direct Livepeer upload for large file (IPFS pattern)');
