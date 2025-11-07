@@ -28,6 +28,76 @@ interface UploadForm {
   };
 }
 
+// Direct Livepeer upload function (bypasses Next.js server)
+async function directLivepeerUpload(file: File, name: string, thumbnail: File | null, metadata: any) {
+  const LIVEPEER_API_KEY = '99764289-df40-4cba-ab77-3105df4bf7a9';
+  
+  // Step 1: Request upload URL from Livepeer
+  const uploadResponse = await fetch('https://livepeer.studio/api/asset/request-upload', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${LIVEPEER_API_KEY}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      name: name,
+      storage: { ipfs: true } // Enable IPFS export
+    })
+  });
+  
+  if (!uploadResponse.ok) {
+    throw new Error(`Upload request failed: ${uploadResponse.status}`);
+  }
+  
+  const uploadData = await uploadResponse.json();
+  
+  // Step 2: Upload file directly to Livepeer
+  const fileUploadResponse = await fetch(uploadData.url, {
+    method: 'PUT',
+    body: file
+  });
+  
+  if (!fileUploadResponse.ok) {
+    throw new Error(`File upload failed: ${fileUploadResponse.status}`);
+  }
+  
+  // Step 3: Create database record via API
+  const dbResponse = await fetch('/api/assets', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      name: name,
+      creator_wallet: metadata.creatorWallet,
+      asset_type: metadata.assetType,
+      file_name: file.name,
+      file_size: file.size,
+      mime_type: file.type,
+      category: metadata.category,
+      tags: metadata.tags,
+      status: 'approved',
+      livepeer_asset_id: uploadData.asset.id,
+      livepeer_status: 'processing',
+      export_status: 'pending',
+      metadata: {
+        ...metadata.metadata,
+        description: metadata.description,
+        upload_method: 'livepeer_direct',
+        original_filename: file.name
+      }
+    })
+  });
+  
+  if (!dbResponse.ok) {
+    console.warn('Database record creation failed, but Livepeer upload succeeded');
+  }
+  
+  return {
+    success: true,
+    livepeerAssetId: uploadData.asset.id,
+    message: 'Direct upload successful'
+  };
+}
+
 export default function AdminUploadPage() {
   const { isAdmin, wallet } = useRBAC();
   const [form, setForm] = useState<UploadForm>({
@@ -173,37 +243,71 @@ export default function AdminUploadPage() {
       // Try Livepeer-first for video/audio, fallback to IPFS
       if (form.type === 'video' || form.type === 'audio') {
         try {
-          console.log('Attempting Livepeer direct upload...');
-          const livepeerFormData = new FormData();
-          livepeerFormData.append('file', form.file);
-          if (form.thumbnail) {
-            livepeerFormData.append('thumbnail', form.thumbnail);
-          }
-          livepeerFormData.append('name', form.name);
-          livepeerFormData.append('assetType', form.type);
-          livepeerFormData.append('creatorWallet', wallet || '');
-          livepeerFormData.append('category', form.category);
-          livepeerFormData.append('description', form.description);
-          livepeerFormData.append('tags', JSON.stringify(form.tags));
-          livepeerFormData.append('metadata', JSON.stringify(form.metadata));
-
-          const livepeerResponse = await fetch('/api/livepeer/upload', {
-            method: 'POST',
-            body: livepeerFormData
+          console.log('Attempting Livepeer direct upload...', {
+            fileName: form.file.name,
+            fileSize: `${(form.file.size / 1024 / 1024).toFixed(1)} MB`,
+            fileType: form.file.type
           });
-
-          if (livepeerResponse.ok) {
-            const result = await livepeerResponse.json();
-            console.log('Livepeer upload successful:', result);
+          
+          // For large files (>25MB), use direct Livepeer upload to bypass server limits
+          const useDirect = form.file.size > 25 * 1024 * 1024;
+          
+          if (useDirect) {
+            console.log('Using direct Livepeer upload for large file');
+            const result = await directLivepeerUpload(form.file, form.name, form.thumbnail, {
+              assetType: form.type,
+              creatorWallet: wallet || '',
+              category: form.category,
+              description: form.description,
+              tags: form.tags,
+              metadata: form.metadata
+            });
+            
+            console.log('Direct Livepeer upload successful:', result);
             setUploadProgress(100);
             setUploadedAsset({ name: form.name, type: form.type });
             setUploadSuccess(true);
-            return; // Exit early on success
+            return;
           } else {
-            throw new Error('Livepeer upload failed');
+            // Use server route for smaller files
+            const livepeerFormData = new FormData();
+            livepeerFormData.append('file', form.file);
+            if (form.thumbnail) {
+              livepeerFormData.append('thumbnail', form.thumbnail);
+            }
+            livepeerFormData.append('name', form.name);
+            livepeerFormData.append('assetType', form.type);
+            livepeerFormData.append('creatorWallet', wallet || '');
+            livepeerFormData.append('category', form.category);
+            livepeerFormData.append('description', form.description);
+            livepeerFormData.append('tags', JSON.stringify(form.tags));
+            livepeerFormData.append('metadata', JSON.stringify(form.metadata));
+
+            const livepeerResponse = await fetch('/api/livepeer/upload', {
+              method: 'POST',
+              body: livepeerFormData
+            });
+
+            if (livepeerResponse.ok) {
+              const result = await livepeerResponse.json();
+              console.log('Livepeer upload successful:', result);
+              setUploadProgress(100);
+              setUploadedAsset({ name: form.name, type: form.type });
+              setUploadSuccess(true);
+              return; // Exit early on success
+            } else {
+              const errorText = await livepeerResponse.text();
+              throw new Error(`Livepeer upload failed: ${livepeerResponse.status} - ${errorText}`);
+            }
           }
         } catch (livepeerError) {
-          console.warn('Livepeer upload failed, falling back to IPFS:', livepeerError);
+          console.error('🚨 LIVEPEER FAILURE DETAILS:', {
+            error: livepeerError,
+            fileName: form.file?.name,
+            fileType: form.file?.type,
+            fileSize: form.file?.size
+          });
+          console.warn('Falling back to IPFS due to Livepeer error:', livepeerError);
         }
       }
 

@@ -3,6 +3,7 @@ const nextConfig = {
   experimental: {
     serverComponentsExternalPackages: ['pg']
   },
+
   webpack: (config, { isServer }) => {
     if (!isServer) {
       config.resolve.fallback = {

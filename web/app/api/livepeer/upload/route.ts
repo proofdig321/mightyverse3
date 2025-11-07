@@ -5,6 +5,14 @@ import { createMetadataPayload, embedMetadataIntoFile } from '../../../../utils/
 
 export async function POST(request: NextRequest) {
   try {
+    // Handle large file uploads - check content length
+    const contentLength = request.headers.get('content-length');
+    if (contentLength && parseInt(contentLength) > 200 * 1024 * 1024) { // 200MB limit
+      return NextResponse.json({ 
+        error: 'File too large. Maximum size is 200MB.' 
+      }, { status: 413 });
+    }
+    
     const formData = await request.formData();
     const file = formData.get('file') as File;
     const thumbnail = formData.get('thumbnail') as File | null;

@@ -71,31 +71,6 @@ class EnhancedDataManager {
     const mockData = {
       assets: [
         {
-          id: '1',
-          name: 'Test Upload',
-          creator_wallet: '0x860Ec697167Ba865DdE1eC9e172004100613e970',
-          asset_type: 'video',
-          file_cid: 'QmYTk3kSftUBnwfFso9oNky4CY1dNqZdVABR8j6Ba1A7mi',
-          status: 'approved',
-          quality_score: 0.95,
-          tags: ['livepeer', 'transcoded', 'hls'],
-          livepeer_asset_id: 'acdff89a-ea37-4e0d-8b4b-ed16792b9ca3',
-          livepeer_status: 'ready',
-          livepeer_playback_id: 'acdfnnrzefy94ubv',
-          livepeer_playback_url: 'https://lp-playback.com/hls/acdfnnrzefy94ubv/index.m3u8',
-          livepeer_thumbnail_url: 'https://lp-playback.com/hls/acdfnnrzefy94ubv/thumbnail.jpg',
-          file_size: 158000000,
-          mime_type: 'video/mp4',
-          metadata: { 
-            duration: 120, 
-            resolution: '1080p',
-            upload_method: 'livepeer_direct',
-            transcoded: true,
-            hls_ready: true
-          },
-          created_at: new Date().toISOString()
-        },
-        {
           id: '2',
           name: 'Test 2',
           creator_wallet: '0x860Ec697167Ba865DdE1eC9e172004100613e970',
