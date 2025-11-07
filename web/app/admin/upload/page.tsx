@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRBAC } from '../../auth/rbac-provider';
-import { dataManager } from '../../../utils/storage/data-store';
+import { enhancedDataManager } from '../../../utils/storage/enhanced-data-store';
 import { ipfsClient } from '../../../utils/storage/ipfs-client';
 import { isrcGenerator } from '../../../utils/metadata/isrc-generator';
 import { mediaTagger } from '../../../utils/metadata/media-tagger';
@@ -175,30 +175,35 @@ export default function AdminUploadPage() {
 
       setUploadProgress(90);
 
+      // Check for duplicates by file CID
+      const existingAssets = await enhancedDataManager.getData('assets');
+      const duplicate = existingAssets.find(asset => asset.file_cid === fileCid);
+      if (duplicate) {
+        throw new Error(`File already uploaded as "${duplicate.name}".`);
+      }
+
       // Create asset record with enhanced metadata
-      await dataManager.addItem('assets', {
+      await enhancedDataManager.createItem('assets', {
         name: form.name,
-        description: form.description,
-        type: form.type,
+        creator_wallet: wallet || '0x860Ec697167Ba865DdE1eC9e172004100613e970',
+        asset_type: form.type,
+        file_cid: fileCid,
+        thumbnail_cid: thumbnailCid,
+        file_name: form.file.name,
+        file_size: form.file.size,
+        mime_type: form.file.type,
         category: form.category,
         tags: form.tags,
-        fileCid,
-        thumbnailCid,
-        fileName: form.file.name,
-        fileSize: form.file.size,
-        mimeType: form.file.type,
+        status: 'approved', // Admin uploads are auto-approved
         metadata: {
           ...form.metadata,
+          description: form.description,
           dimensions: form.metadata.dimensions,
           duration: form.metadata.duration,
           frameRate: form.metadata.frameRate,
           bitrate: form.metadata.bitrate,
           sampleRate: form.metadata.sampleRate
-        },
-        status: 'approved', // Admin uploads are auto-approved
-        creator: wallet,
-        uploadedAt: new Date().toISOString(),
-        uploadedBy: wallet
+        }
       });
 
       setUploadProgress(100);
