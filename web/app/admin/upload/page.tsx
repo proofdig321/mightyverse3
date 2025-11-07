@@ -253,21 +253,33 @@ export default function AdminUploadPage() {
           const useDirect = form.file.size > 25 * 1024 * 1024;
           
           if (useDirect) {
-            console.log('Using direct Livepeer upload for large file');
-            const result = await directLivepeerUpload(form.file, form.name, form.thumbnail, {
-              assetType: form.type,
-              creatorWallet: wallet || '',
-              category: form.category,
-              description: form.description,
-              tags: form.tags,
-              metadata: form.metadata
-            });
+            console.log('Using MCP Livepeer agent for large file');
+            const { mcpClient } = await import('../../../utils/agents/mcp-client');
             
-            console.log('Direct Livepeer upload successful:', result);
-            setUploadProgress(100);
-            setUploadedAsset({ name: form.name, type: form.type });
-            setUploadSuccess(true);
-            return;
+            const mcpFormData = new FormData();
+            mcpFormData.append('file', form.file);
+            if (form.thumbnail) {
+              mcpFormData.append('thumbnail', form.thumbnail);
+            }
+            mcpFormData.append('name', form.name);
+            mcpFormData.append('assetType', form.type);
+            mcpFormData.append('creatorWallet', wallet || '');
+            mcpFormData.append('category', form.category);
+            mcpFormData.append('description', form.description);
+            mcpFormData.append('tags', JSON.stringify(form.tags));
+            mcpFormData.append('metadata', JSON.stringify(form.metadata));
+            
+            const result = await mcpClient.uploadToLivepeer(mcpFormData);
+            
+            if (result.success) {
+              console.log('MCP Livepeer upload successful:', result);
+              setUploadProgress(100);
+              setUploadedAsset({ name: form.name, type: form.type });
+              setUploadSuccess(true);
+              return;
+            } else {
+              throw new Error(result.error || 'MCP Livepeer upload failed');
+            }
           } else {
             // Use server route for smaller files
             const livepeerFormData = new FormData();

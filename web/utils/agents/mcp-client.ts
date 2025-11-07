@@ -40,6 +40,10 @@ export class MCPClient {
     return this.callAgent('rbac', { wallet, roles, action });
   }
 
+  async uploadToLivepeer(formData: FormData): Promise<AgentResponse> {
+    return this.callAgentFormData('livepeer-upload', formData);
+  }
+
   async getAgentStatus(): Promise<AgentResponse> {
     try {
       const response = await fetch(`${this.baseUrl}/agents/status`);
@@ -56,6 +60,25 @@ export class MCPClient {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
+      });
+      
+      const data = await response.json();
+      return { success: response.ok, data, agent, timestamp: new Date().toISOString() };
+    } catch (error) {
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Agent call failed',
+        agent,
+        timestamp: new Date().toISOString()
+      };
+    }
+  }
+
+  private async callAgentFormData(agent: string, formData: FormData): Promise<AgentResponse> {
+    try {
+      const response = await fetch(`${this.baseUrl}/agents/${agent}`, {
+        method: 'POST',
+        body: formData
       });
       
       const data = await response.json();
