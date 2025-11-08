@@ -6,24 +6,41 @@ export default function FixPage() {
   const [cid, setCid] = useState('');
   const [fixed, setFixed] = useState(false);
 
-  const fixRegistry = () => {
+  const fixRegistry = async () => {
     if (!cid.trim()) {
       alert('Please enter the full CID');
       return;
     }
 
-    const store = {
-      assets: cid.trim(),
-      campaigns: 'QmVkvoPGi9jvvuxsHDVJDgzPEzagBaWSZRYoRDzU244HjZ',
-      submissions: 'QmVkvoPGi9jvvuxsHDVJDgzPEzagBaWSZRYoRDzU244HjZ',
-      sponsors: 'QmVkvoPGi9jvvuxsHDVJDgzPEzagBaWSZRYoRDzU244HjZ',
-      users: 'QmVkvoPGi9jvvuxsHDVJDgzPEzagBaWSZRYoRDzU244HjZ',
-      mintRequests: 'QmVkvoPGi9jvvuxsHDVJDgzPEzagBaWSZRYoRDzU244HjZ',
-      roles: 'QmVkvoPGi9jvvuxsHDVJDgzPEzagBaWSZRYoRDzU244HjZ'
-    };
-    
-    localStorage.setItem('mv-data-store', JSON.stringify(store));
-    setFixed(true);
+    try {
+      // Test CID accessibility first
+      const testUrl = `https://ipfs.io/ipfs/${cid.trim()}`;
+      const response = await fetch(testUrl);
+      
+      if (!response.ok) {
+        alert(`CID not accessible: ${response.status}. Try a different gateway or CID.`);
+        return;
+      }
+
+      // Update Supabase assets with working CID
+      const updateResponse = await fetch('/api/fix/cid', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          assetId: 'cd3ecfa0-953f-41d7-98a2-fc8b80383692', // Known failing asset
+          newCid: cid.trim()
+        })
+      });
+
+      if (updateResponse.ok) {
+        setFixed(true);
+        alert('CID updated successfully! Refresh the page to see changes.');
+      } else {
+        alert('Failed to update database. CID may still work for direct access.');
+      }
+    } catch (error) {
+      alert(`Error testing CID: ${error}`);
+    }
   };
 
   return (
@@ -41,7 +58,10 @@ export default function FixPage() {
       <div className="bg-gray-900 p-4 rounded-lg mb-6">
         <h2 className="text-xl font-semibold mb-4">Enter Correct CID</h2>
         <p className="text-sm text-gray-400 mb-4">
-          Copy the full CID of the 1.09KB "assets-registry" from Pinata dashboard
+          Enter a working IPFS CID to replace the failing one (QmYUhvgnZ8oqfZFdfxK12CfsmcY4mrqZx4AKw94mAgMLiz)
+        </p>
+        <p className="text-xs text-yellow-400 mb-4">
+          Current failing asset: cd3ecfa0-953f-41d7-98a2-fc8b80383692
         </p>
         
         <div className="flex space-x-2 mb-4">
