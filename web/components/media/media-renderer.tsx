@@ -26,7 +26,7 @@ export default function MediaRenderer({
   const [gateway, setGateway] = useState<string>('https://ipfs.io/ipfs/');
   
   useEffect(() => {
-    if (fileCid) {
+    if (fileCid && fileCid.trim() !== '') {
       import('../../utils/storage/enhanced-data-store').then(({ gatewayManager }) => {
         gatewayManager.getIPFSUrl(fileCid)
           .then(setGateway)
@@ -38,6 +38,8 @@ export default function MediaRenderer({
     }
   }, [fileCid]);
   
+  const [livepeerPlaybackUrl, setLivepeerPlaybackUrl] = useState<string | null>(null);
+
   // Check for Livepeer stream availability
   useEffect(() => {
     if (fileCid && (mimeType?.startsWith('video/') || fileName?.match(/\.(mp4|mov|webm)$/i))) {
@@ -46,6 +48,7 @@ export default function MediaRenderer({
         .then(data => {
           if (data.playbackId) {
             setLivepeerPlaybackId(data.playbackId);
+            setLivepeerPlaybackUrl(data.playbackUrl || null);
           } else {
             setUseIpfs(true);
           }
@@ -129,7 +132,7 @@ export default function MediaRenderer({
   // Video and Animation rendering
   if (mimeType?.startsWith('video/') || fileName?.match(/\.(mp4|mov|webm|gif)$/i)) {
     const videoUrl = livepeerPlaybackId && !useIpfs 
-      ? `https://cdn.livepeer.studio/hls/${livepeerPlaybackId}/index.m3u8`
+      ? (livepeerPlaybackUrl || `https://lp-playback.com/hls/${livepeerPlaybackId}/index.m3u8`)
       : fileUrl;
     
     const isLivepeer = livepeerPlaybackId && !useIpfs;
