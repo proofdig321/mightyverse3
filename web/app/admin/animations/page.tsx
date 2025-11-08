@@ -15,9 +15,13 @@ interface Asset {
   asset_type?: string;
   status: 'pending' | 'approved' | 'rejected' | 'published';
   fileCid?: string;
+  file_cid?: string;
   thumbnailCid?: string;
+  thumbnail_cid?: string;
   fileName?: string;
+  file_name?: string;
   mimeType?: string;
+  mime_type?: string;
   metadata?: {
     duration?: number;
     renditions?: Array<{
