@@ -126,7 +126,6 @@ export function HeroCanvas({ card, isPlaying, currentTime, onTimeUpdate, animato
         video.src = src;
         video.addEventListener('loadedmetadata', () => {
           setIsLoaded(true);
-          video.play().catch(e => console.log('Autoplay prevented'));
         });
         return;
       }
@@ -140,7 +139,6 @@ export function HeroCanvas({ card, isPlaying, currentTime, onTimeUpdate, animato
         hls.attachMedia(video);
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
           setIsLoaded(true);
-          video.play().catch(e => console.log('Autoplay prevented'));
         });
         hls.on(Hls.Events.ERROR, (event, data) => {
           console.error('HLS error:', event, data);
@@ -149,7 +147,6 @@ export function HeroCanvas({ card, isPlaying, currentTime, onTimeUpdate, animato
         video.src = src;
         video.addEventListener('loadedmetadata', () => {
           setIsLoaded(true);
-          video.play().catch(e => console.log('Autoplay prevented'));
         });
       }
     } catch (error) {
@@ -536,7 +533,7 @@ export function HeroCanvas({ card, isPlaying, currentTime, onTimeUpdate, animato
           ref={videoRef}
           playsInline
           muted
-          autoPlay
+
           loop
           controls={false}
           className="absolute inset-0 w-full h-full object-cover opacity-0 pointer-events-none"
