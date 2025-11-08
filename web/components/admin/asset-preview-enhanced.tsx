@@ -68,6 +68,38 @@ export default function AssetPreviewEnhanced({
     }
   };
 
+  const handleDelete = async () => {
+    if (!confirm(`Are you sure you want to delete "${asset.name}"? This action cannot be undone.`)) {
+      return;
+    }
+    
+    try {
+      const response = await fetch(`/api/assets/${asset.id}`, {
+        method: 'DELETE'
+      });
+      
+      if (!response.ok) {
+        throw new Error('Delete failed');
+      }
+      
+      // Refresh the parent component
+      onStatusChange?.(asset.id, 'deleted');
+    } catch (error) {
+      console.error('Failed to delete asset:', error);
+      alert('Failed to delete asset. Please try again.');
+    }
+  };
+
+  const handleToggleCurated = async () => {
+    try {
+      const newCuratedStatus = !(asset as any).is_curated;
+      await enhancedDataManager.updateItem('assets', asset.id, { is_curated: newCuratedStatus });
+      onStatusChange?.(asset.id, asset.status); // Trigger refresh
+    } catch (error) {
+      console.error('Failed to toggle curated status:', error);
+    }
+  };
+
   const getStatusColor = (status: string) => {
     const colors = {
       draft: 'mv-status-pending',
@@ -229,6 +261,17 @@ export default function AssetPreviewEnhanced({
                 🏷️ embedded
               </span>
             )}
+            <button
+              onClick={handleToggleCurated}
+              className={`px-2 py-1 rounded-full text-xs ${
+                (asset as any).is_curated 
+                  ? 'text-yellow-400 bg-yellow-400/10 border border-yellow-400/30' 
+                  : 'text-gray-400 bg-gray-400/10 border border-gray-400/30'
+              }`}
+              title="Toggle curation status"
+            >
+              {(asset as any).is_curated ? '⭐ Curated' : '☆ Curate'}
+            </button>
             {asset.quality_score && (
               <span className="mv-text-energy">
                 {Math.round(asset.quality_score * 100)}% quality
@@ -365,6 +408,14 @@ export default function AssetPreviewEnhanced({
               🚀 Publish
             </button>
           )}
+          
+          <button
+            onClick={handleDelete}
+            className="px-3 py-2 bg-red-600/80 text-white rounded-lg text-sm hover:bg-red-700 border border-red-500/30"
+            title="Delete asset permanently"
+          >
+            🗑️ Delete
+          </button>
         </div>
       )}
     </div>

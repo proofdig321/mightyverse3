@@ -22,7 +22,7 @@ export default function MediaRenderer({
   const [livepeerPlaybackId, setLivepeerPlaybackId] = useState<string | null>(null);
   const [useIpfs, setUseIpfs] = useState(false);
   
-  const gateway = process.env.NEXT_PUBLIC_IPFS_GATEWAY || 'https://gateway.pinata.cloud/ipfs/';
+  const gateway = process.env.NEXT_PUBLIC_IPFS_GATEWAY || 'https://ipfs.io/ipfs/';
   
   // Check for Livepeer stream availability
   useEffect(() => {
@@ -158,7 +158,13 @@ export default function MediaRenderer({
             onError={(e) => {
               console.error('MediaRenderer video error:', e);
               console.error('Video URL:', fileUrl);
-              setError(true);
+              // Try alternative gateway on CORS error
+              if (fileUrl.includes('gateway.pinata.cloud')) {
+                const altUrl = fileUrl.replace('gateway.pinata.cloud/ipfs/', 'ipfs.io/ipfs/');
+                (e.target as HTMLVideoElement).src = altUrl;
+              } else {
+                setError(true);
+              }
             }}
             style={{ objectFit: 'contain' }}
           >

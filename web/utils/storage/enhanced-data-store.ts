@@ -71,19 +71,66 @@ class EnhancedDataManager {
     const mockData = {
       assets: [
         {
-          id: '2',
-          name: 'Test 2',
+          id: '1',
+          name: 'Holographic Animation Test',
           creator_wallet: '0x860Ec697167Ba865DdE1eC9e172004100613e970',
           asset_type: 'video',
           file_cid: 'QmVkvoPGi9jvvuxsHDVJDgzPEzagBaWSZRYoRDzU244HjZ',
           status: 'approved',
-          quality_score: 0.88,
-          tags: ['test', 'ipfs'],
+          quality_score: 0.95,
+          tags: ['holographic', 'animation', 'test'],
+          is_curated: true,
           metadata: { 
             upload_method: 'ipfs_direct',
-            description: 'IPFS direct upload test'
+            description: 'Test holographic animation',
+            duration: 30,
+            format: 'mp4'
           },
-          created_at: new Date().toISOString()
+          created_at: new Date(Date.now() - 86400000).toISOString(),
+          submittedBy: '0x860Ec697167Ba865DdE1eC9e172004100613e970',
+          submittedAt: new Date(Date.now() - 86400000).toISOString()
+        },
+        {
+          id: '2',
+          name: 'Livepeer Stream Test',
+          creator_wallet: '0x860Ec697167Ba865DdE1eC9e172004100613e970',
+          asset_type: 'video',
+          status: 'submitted',
+          quality_score: 0.88,
+          tags: ['livepeer', 'streaming'],
+          is_curated: false,
+          livepeer_playback_id: 'test123',
+          livepeer_playback_url: 'https://cdn.livepeer.studio/hls/test123/index.m3u8',
+          livepeer_status: 'ready',
+          export_status: 'completed',
+          metadata: { 
+            upload_method: 'livepeer_direct',
+            description: 'Livepeer streaming test',
+            duration: 45,
+            format: 'hls'
+          },
+          created_at: new Date(Date.now() - 43200000).toISOString(),
+          submittedBy: '0x860Ec697167Ba865DdE1eC9e172004100613e970',
+          submittedAt: new Date(Date.now() - 43200000).toISOString()
+        },
+        {
+          id: '3',
+          name: 'Pending Review Asset',
+          creator_wallet: '0x123456789abcdef123456789abcdef1234567890',
+          asset_type: 'image',
+          file_cid: 'QmTestImageCid123456789',
+          status: 'submitted',
+          quality_score: 0.72,
+          tags: ['art', 'digital'],
+          is_curated: false,
+          metadata: { 
+            upload_method: 'ipfs_direct',
+            description: 'Digital art submission',
+            format: 'png'
+          },
+          created_at: new Date(Date.now() - 21600000).toISOString(),
+          submittedBy: '0x123456789abcdef123456789abcdef1234567890',
+          submittedAt: new Date(Date.now() - 21600000).toISOString()
         }
       ],
       murals: [
@@ -113,6 +160,12 @@ class EnhancedDataManager {
           id: '1',
           wallet: '0x860Ec697167Ba865DdE1eC9e172004100613e970',
           role: 'admin',
+          created_at: new Date().toISOString()
+        },
+        {
+          id: '2',
+          wallet: '0x123456789abcdef123456789abcdef1234567890',
+          role: 'creator',
           created_at: new Date().toISOString()
         }
       ],
@@ -288,42 +341,57 @@ class EnhancedDataManager {
           .select()
           .single();
 
-        if (error) throw error;
+        if (error) {
+          console.warn(`Supabase update error for ${table}:`, error.message);
+          // Fall back to localStorage update
+          return this.updateItemInLocalStorage(table, id, updates);
+        }
         
         // Update cache and notify subscribers
         this.invalidateCache(table);
         this.notifySubscribers(table);
         return data;
       } else {
-        // Enhanced mock update with localStorage persistence
-        const currentData = this.getMockData(table);
-        const itemIndex = currentData.findIndex(item => item.id === id);
-        
-        if (itemIndex === -1) {
-          throw new Error(`Item with id ${id} not found`);
-        }
-        
-        const updatedItem = {
-          ...currentData[itemIndex],
-          ...updates,
-          updated_at: new Date().toISOString()
-        };
-        
-        currentData[itemIndex] = updatedItem;
-        
-        // Persist to localStorage
-        localStorage.setItem(`mighty_${table}`, JSON.stringify(currentData));
-        this.cache.set(table, currentData);
-        
-        // Notify subscribers
-        this.notifySubscribers(table);
-        
-        return updatedItem;
+        return this.updateItemInLocalStorage(table, id, updates);
       }
     } catch (error) {
       console.error(`Failed to update item in ${table}:`, error);
-      throw error;
+      // Try localStorage fallback
+      try {
+        return this.updateItemInLocalStorage(table, id, updates);
+      } catch (fallbackError) {
+        throw error;
+      }
     }
+  }
+
+  private updateItemInLocalStorage(table: string, id: string, updates: Partial<DataItem>): DataItem {
+    // Enhanced mock update with localStorage persistence
+    const currentData = this.getMockData(table);
+    const itemIndex = currentData.findIndex(item => item.id === id);
+    
+    if (itemIndex === -1) {
+      throw new Error(`Item with id ${id} not found in ${table}`);
+    }
+    
+    const updatedItem = {
+      ...currentData[itemIndex],
+      ...updates,
+      updated_at: new Date().toISOString()
+    };
+    
+    currentData[itemIndex] = updatedItem;
+    
+    // Persist to localStorage (browser only)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(`mighty_${table}`, JSON.stringify(currentData));
+    }
+    this.cache.set(table, currentData);
+    
+    // Notify subscribers
+    this.notifySubscribers(table);
+    
+    return updatedItem;
   }
 
   async deleteItem(table: string, id: string): Promise<boolean> {
@@ -334,33 +402,48 @@ class EnhancedDataManager {
           .delete()
           .eq('id', id);
 
-        if (error) throw error;
+        if (error) {
+          console.warn(`Supabase delete error for ${table}:`, error.message);
+          // Fall back to localStorage deletion
+          return this.deleteItemFromLocalStorage(table, id);
+        }
         
         // Update cache and notify subscribers
         this.invalidateCache(table);
         this.notifySubscribers(table);
         return true;
       } else {
-        // Enhanced mock deletion with localStorage persistence
-        const currentData = this.getMockData(table);
-        const filteredData = currentData.filter(item => item.id !== id);
-        
-        if (filteredData.length === currentData.length) {
-          throw new Error(`Item with id ${id} not found`);
-        }
-        
-        // Persist to localStorage
-        localStorage.setItem(`mighty_${table}`, JSON.stringify(filteredData));
-        this.cache.set(table, filteredData);
-        
-        // Notify subscribers
-        this.notifySubscribers(table);
-        return true;
+        return this.deleteItemFromLocalStorage(table, id);
       }
     } catch (error) {
       console.error(`Failed to delete item from ${table}:`, error);
-      throw error;
+      // Try localStorage fallback
+      try {
+        return this.deleteItemFromLocalStorage(table, id);
+      } catch (fallbackError) {
+        throw error;
+      }
     }
+  }
+
+  private deleteItemFromLocalStorage(table: string, id: string): boolean {
+    // Enhanced mock deletion with localStorage persistence
+    const currentData = this.getMockData(table);
+    const filteredData = currentData.filter(item => item.id !== id);
+    
+    if (filteredData.length === currentData.length) {
+      throw new Error(`Item with id ${id} not found in ${table}`);
+    }
+    
+    // Persist to localStorage (browser only)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(`mighty_${table}`, JSON.stringify(filteredData));
+    }
+    this.cache.set(table, filteredData);
+    
+    // Notify subscribers
+    this.notifySubscribers(table);
+    return true;
   }
 
   // Enhanced query methods

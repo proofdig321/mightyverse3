@@ -13,17 +13,21 @@ interface Asset {
   id: string;
   name: string;
   type: string;
-  status: 'pending' | 'approved' | 'rejected';
+  status: 'draft' | 'processing' | 'submitted' | 'pending' | 'approved' | 'rejected' | 'published' | 'archived';
   submittedBy: string;
   submittedAt: string;
+  created_at?: string;
   fileCid?: string;
   thumbnailCid?: string;
   fileName?: string;
   mimeType?: string;
+  is_curated?: boolean;
   metadata?: {
     isrc?: string;
     duration?: number;
     format?: string;
+    upload_method?: string;
+    description?: string;
   };
 }
 
@@ -55,10 +59,17 @@ export default function AssetsPage() {
 
   const handleStatusChange = async (assetId: string, newStatus: string) => {
     try {
-      await enhancedDataManager.updateItem('assets', assetId, { status: newStatus });
-      await loadAssets();
+      if (newStatus === 'deleted') {
+        // Remove from local state immediately for better UX
+        setAssets(prev => prev.filter(asset => asset.id !== assetId));
+      } else {
+        await enhancedDataManager.updateItem('assets', assetId, { status: newStatus });
+        await loadAssets();
+      }
     } catch (error) {
       console.error('Failed to update asset status:', error);
+      // Reload on error to ensure consistency
+      await loadAssets();
     }
   };
 
@@ -96,11 +107,52 @@ export default function AssetsPage() {
       />
 
       <div className="mv-card p-6">
+        {/* Asset Statistics */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div className="mv-card p-4 text-center">
+            <div className="text-2xl font-bold text-yellow-400">{assets.filter(a => a.status === 'submitted').length}</div>
+            <div className="text-sm mv-text-muted">Pending Review</div>
+          </div>
+          <div className="mv-card p-4 text-center">
+            <div className="text-2xl font-bold text-green-400">{assets.filter(a => a.status === 'approved').length}</div>
+            <div className="text-sm mv-text-muted">Approved</div>
+          </div>
+          <div className="mv-card p-4 text-center">
+            <div className="text-2xl font-bold text-purple-400">{assets.filter(a => a.status === 'published').length}</div>
+            <div className="text-sm mv-text-muted">Published</div>
+          </div>
+          <div className="mv-card p-4 text-center">
+            <div className="text-2xl font-bold text-blue-400">{assets.filter(a => (a as any).is_curated).length}</div>
+            <div className="text-sm mv-text-muted">Curated</div>
+          </div>
+        </div>
+
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 space-y-4 sm:space-y-0">
-          <h2 className="mv-heading-md">Pending Assets ({assets.filter(a => a.status === 'pending').length})</h2>
+          <h2 className="mv-heading-md">All Assets ({assets.length})</h2>
           <div className="flex space-x-2">
-            <button className="mv-button-sm">Filter</button>
-            <button className="mv-button-sm">Sort</button>
+            <select 
+              className="mv-button-sm bg-white/10 border border-white/20"
+              onChange={(e) => {
+                const status = e.target.value;
+                if (status === 'all') {
+                  loadAssets();
+                } else {
+                  setAssets(prev => prev.filter(a => a.status === status));
+                }
+              }}
+            >
+              <option value="all">All Status</option>
+              <option value="submitted">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="published">Published</option>
+              <option value="rejected">Rejected</option>
+            </select>
+            <button 
+              className="mv-button-sm"
+              onClick={() => setAssets(prev => [...prev].sort((a, b) => new Date(b.submittedAt || b.created_at || '').getTime() - new Date(a.submittedAt || a.created_at || '').getTime()))}
+            >
+              Sort by Date
+            </button>
           </div>
         </div>
 
