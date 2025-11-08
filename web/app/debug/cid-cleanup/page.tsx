@@ -27,9 +27,13 @@ export default function CIDCleanupPage() {
     setIssues([]);
 
     try {
+      console.log('Fetching assets...');
       const response = await fetch('/api/assets');
+      console.log('Response status:', response.status);
       const result = await response.json();
+      console.log('API result:', result);
       const assets: Asset[] = result.data || result;
+      console.log('Assets array:', assets, 'Length:', assets.length);
       
       const foundIssues: ValidationIssue[] = [];
 
