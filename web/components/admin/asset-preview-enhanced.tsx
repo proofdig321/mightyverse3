@@ -146,6 +146,7 @@ export default function AssetPreviewEnhanced({
                 <img
                   src={(asset as any).livepeer_thumbnail_url}
                   alt={asset.name}
+                  crossOrigin="anonymous"
                   className="w-full h-full object-cover rounded-lg opacity-80"
                 />
               ) : (
@@ -171,7 +172,9 @@ export default function AssetPreviewEnhanced({
             {/* HLS Video Player for Livepeer assets */}
             {(asset as any).livepeer_playback_url && asset.asset_type === 'video' ? (
               <video
+                id={`video-${asset.id}`}
                 controls
+                crossOrigin="anonymous"
                 className="w-full h-full object-cover"
                 src={(asset as any).livepeer_playback_url}
                 poster={
@@ -268,6 +271,7 @@ export default function AssetPreviewEnhanced({
               </span>
             )}
             <button
+              id={`curate-${asset.id}`}
               onClick={handleToggleCurated}
               className={`px-2 py-1 rounded-full text-xs ${
                 (asset as any).is_curated 
