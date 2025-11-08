@@ -112,9 +112,9 @@ export function HeroCanvas({ card, isPlaying, currentTime, onTimeUpdate, animato
       }
 
       const getHlsSource = () => {
-        if (playbackId) return `https://vod-cdn.lp-playback.studio/raw/jxf4iblf6wlsyor6526t4tcmtmqa/catalyst-vod-com/hls/${playbackId}/index.m3u8`;
+        if (playbackId) return `https://cdn.livepeer.studio/hls/${playbackId}/index.m3u8`;
         if (hlsUrl) return hlsUrl;
-        if (ipfsCid) return `https://gateway.pinata.cloud/ipfs/${ipfsCid}`;
+        if (ipfsCid) return `https://cloudflare-ipfs.com/ipfs/${ipfsCid}`;
         return null;
       };
 
@@ -126,6 +126,7 @@ export function HeroCanvas({ card, isPlaying, currentTime, onTimeUpdate, animato
         video.src = src;
         video.addEventListener('loadedmetadata', () => {
           setIsLoaded(true);
+          video.play().catch(e => console.log('Autoplay prevented'));
         });
         return;
       }
@@ -139,13 +140,17 @@ export function HeroCanvas({ card, isPlaying, currentTime, onTimeUpdate, animato
         hls.attachMedia(video);
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
           setIsLoaded(true);
+          video.play().catch(e => console.log('Autoplay prevented'));
         });
         hls.on(Hls.Events.ERROR, (event, data) => {
           console.error('HLS error:', event, data);
         });
       } else {
         video.src = src;
-        setIsLoaded(true);
+        video.addEventListener('loadedmetadata', () => {
+          setIsLoaded(true);
+          video.play().catch(e => console.log('Autoplay prevented'));
+        });
       }
     } catch (error) {
       console.error('Failed to load video source:', error);
@@ -531,9 +536,13 @@ export function HeroCanvas({ card, isPlaying, currentTime, onTimeUpdate, animato
           ref={videoRef}
           playsInline
           muted
+          autoPlay
+          loop
+          controls={false}
           className="absolute inset-0 w-full h-full object-cover opacity-0 pointer-events-none"
           onPlay={() => startAnimation()}
           onPause={() => stopAnimation()}
+          onLoadedData={() => setIsLoaded(true)}
         />
       )}
       <canvas
