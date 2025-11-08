@@ -74,6 +74,8 @@ export default function MediaRenderer({
   const fileUrl = (gateway.includes('/ipfs/') && gateway.length > 20) ? gateway : `${gateway}${fileCid}`;
   const thumbnailUrl = thumbnailCid ? 
     `https://ipfs.io/ipfs/${thumbnailCid}` : null;
+  
+  console.log('MediaRenderer URLs - fileUrl:', fileUrl, 'thumbnailUrl:', thumbnailUrl, 'gateway:', gateway);
 
   if (error) {
     return (
@@ -150,7 +152,7 @@ export default function MediaRenderer({
             playsInline
             crossOrigin="anonymous"
             className={`${className} bg-black`}
-            poster={thumbnailUrl || undefined}
+            poster={thumbnailUrl && thumbnailUrl !== 'https://ipfs.io/ipfs/' ? thumbnailUrl : undefined}
             onLoadStart={() => setLoading(false)}
             onLoadedData={() => setLoading(false)}
             onCanPlay={() => setLoading(false)}
@@ -175,7 +177,7 @@ export default function MediaRenderer({
             loop={fileName?.includes('.gif')}
             muted={fileName?.includes('.gif')}
             className={`${className} bg-black`}
-            poster={thumbnailUrl || undefined}
+            poster={thumbnailUrl && thumbnailUrl !== 'https://ipfs.io/ipfs/' ? thumbnailUrl : undefined}
             onLoadStart={() => setLoading(false)}
             onLoadedData={() => setLoading(false)}
             onCanPlay={() => setLoading(false)}
