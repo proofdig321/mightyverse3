@@ -90,5 +90,5 @@ export class CIDValidator {
   }
 }
 
-export const validateCID = CIDValidator.validate;
-export const sanitizeCID = CIDValidator.sanitize;
+export const validateCID = (cid: string): CIDValidationResult => CIDValidator.validate(cid);
+export const sanitizeCID = (cid: string): string => CIDValidator.sanitize(cid);

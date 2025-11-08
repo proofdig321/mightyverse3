@@ -28,7 +28,8 @@ export default function CIDCleanupPage() {
 
     try {
       const response = await fetch('/api/assets');
-      const assets: Asset[] = await response.json();
+      const result = await response.json();
+      const assets: Asset[] = result.data || result;
       
       const foundIssues: ValidationIssue[] = [];
 

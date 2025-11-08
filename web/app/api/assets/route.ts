@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
       );
     }
     
-    return NextResponse.json({ success: true, data: assets });
+    return NextResponse.json(assets);
   } catch (error) {
     return NextResponse.json({ 
       error: error instanceof Error ? error.message : 'Failed to fetch assets' 
