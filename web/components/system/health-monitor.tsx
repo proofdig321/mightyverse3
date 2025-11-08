@@ -52,9 +52,14 @@ export default function HealthMonitor() {
       
       if (result.success) {
         alert(`Schema sync completed: ${result.changes.length} changes applied`);
-        checkHealth(); // Refresh health status
+        checkHealth();
       } else {
-        alert(`Schema sync failed: ${result.errors.join(', ')}`);
+        const migrationInstructions = result.errors.filter((e: string) => e.includes('ALTER TABLE')).join('\n');
+        if (migrationInstructions) {
+          alert(`Manual migration required:\n\n${migrationInstructions}\n\nRun these in Supabase Dashboard > SQL Editor`);
+        } else {
+          alert(`Schema sync failed: ${result.errors.join(', ')}`);
+        }
       }
     } catch (error) {
       alert('Schema sync request failed');

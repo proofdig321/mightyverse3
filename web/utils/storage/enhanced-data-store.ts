@@ -384,7 +384,26 @@ class EnhancedDataManager {
     const itemIndex = currentData.findIndex(item => item.id === id);
     
     if (itemIndex === -1) {
-      throw new Error(`Item with id ${id} not found in ${table}`);
+      // Create missing item if it doesn't exist (for Supabase items not in localStorage)
+      const newItem = {
+        id,
+        name: 'Synced Asset',
+        creator_wallet: '0x0000000000000000000000000000000000000000',
+        asset_type: 'unknown',
+        status: 'draft',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        ...updates
+      };
+      currentData.unshift(newItem);
+      
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(`mighty_${table}`, JSON.stringify(currentData));
+      }
+      this.cache.set(table, currentData);
+      this.notifySubscribers(table);
+      
+      return newItem;
     }
     
     const updatedItem = {
