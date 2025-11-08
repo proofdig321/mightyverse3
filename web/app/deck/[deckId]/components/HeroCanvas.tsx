@@ -112,7 +112,7 @@ export function HeroCanvas({ card, isPlaying, currentTime, onTimeUpdate, animato
       }
 
       const getHlsSource = () => {
-        if (playbackId) return `https://cdn.livepeer.studio/hls/${playbackId}/index.m3u8`;
+        if (playbackId) return `https://lp-playback.com/hls/${playbackId}/index.m3u8`;
         if (hlsUrl) return hlsUrl;
         if (ipfsCid) return `https://ipfs.io/ipfs/${ipfsCid}`;
         return null;
