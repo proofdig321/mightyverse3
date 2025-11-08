@@ -86,7 +86,7 @@ export class CIDValidator {
   static detectTruncation(cid: string): boolean {
     if (!cid) return false;
     const validation = this.validate(cid);
-    return !validation.isValid && validation.suggestion?.includes('truncated');
+    return !validation.isValid && (validation.suggestion?.includes('truncated') ?? false);
   }
 }
 
