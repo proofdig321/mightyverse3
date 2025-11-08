@@ -71,7 +71,7 @@ export default function MediaRenderer({
     );
   }
 
-  const fileUrl = gateway.includes(`/ipfs/${fileCid}`) ? gateway : `${gateway}${fileCid}`;
+  const fileUrl = gateway.endsWith(fileCid) ? gateway : `${gateway}${fileCid}`;
   const thumbnailUrl = thumbnailCid ? 
     `https://ipfs.io/ipfs/${thumbnailCid}` : null;
   
