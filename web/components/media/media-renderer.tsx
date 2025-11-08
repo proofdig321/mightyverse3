@@ -22,7 +22,13 @@ export default function MediaRenderer({
   const [livepeerPlaybackId, setLivepeerPlaybackId] = useState<string | null>(null);
   const [useIpfs, setUseIpfs] = useState(false);
   
-  const gateway = process.env.NEXT_PUBLIC_IPFS_GATEWAY || 'https://ipfs.io/ipfs/';
+  // Use multiple gateways for better reliability
+  const gateways = [
+    'https://ipfs.io/ipfs/',
+    'https://cloudflare-ipfs.com/ipfs/',
+    'https://dweb.link/ipfs/'
+  ];
+  const gateway = gateways[0];
   
   // Check for Livepeer stream availability
   useEffect(() => {
@@ -158,10 +164,17 @@ export default function MediaRenderer({
             onError={(e) => {
               console.error('MediaRenderer video error:', e);
               console.error('Video URL:', fileUrl);
-              // Try alternative gateway on CORS error
-              if (fileUrl.includes('gateway.pinata.cloud')) {
-                const altUrl = fileUrl.replace('gateway.pinata.cloud/ipfs/', 'ipfs.io/ipfs/');
-                (e.target as HTMLVideoElement).src = altUrl;
+              // Try alternative gateways
+              const currentTarget = e.target as HTMLVideoElement;
+              const currentSrc = currentTarget.src;
+              
+              // Find next gateway to try
+              const currentGatewayIndex = gateways.findIndex(g => currentSrc.includes(g.replace('https://', '').split('/')[0]));
+              const nextGatewayIndex = currentGatewayIndex + 1;
+              
+              if (nextGatewayIndex < gateways.length && fileCid) {
+                const nextGateway = gateways[nextGatewayIndex];
+                currentTarget.src = `${nextGateway}${fileCid}`;
               } else {
                 setError(true);
               }

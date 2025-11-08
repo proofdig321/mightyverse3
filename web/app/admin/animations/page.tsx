@@ -6,7 +6,6 @@ import { enhancedDataManager } from '../../../utils/storage/enhanced-data-store'
 import NavigationHeader from '../../../components/shared/navigation-header';
 import Pagination from '../../../components/shared/pagination';
 import MediaRenderer from '../../../components/media/media-renderer';
-import HolographicVideoPlayer from '../../../components/HolographicVideoPlayer';
 import Link from 'next/link';
 
 interface Asset {
@@ -123,6 +122,8 @@ export default function AdminAnimationsPage() {
           <h2 className="mv-heading-md">Animations ({filteredAssets.length})</h2>
           <div className="flex space-x-4">
             <select
+              id="status-filter"
+              name="statusFilter"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as any)}
               className="px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white"
@@ -151,15 +152,15 @@ export default function AdminAnimationsPage() {
             </div>
           </div>
 
-          <HolographicVideoPlayer
-            fileCid={selectedAsset.fileCid}
-            thumbnailCid={selectedAsset.thumbnailCid}
-            mimeType={selectedAsset.mimeType}
-            fileName={selectedAsset.fileName}
-            renditions={selectedAsset.metadata?.renditions}
-            title={selectedAsset.name}
-            className="w-full h-96"
-          />
+          <div className="aspect-video bg-black rounded-lg overflow-hidden">
+            <MediaRenderer
+              fileCid={selectedAsset.fileCid}
+              thumbnailCid={selectedAsset.thumbnailCid}
+              mimeType={selectedAsset.mimeType}
+              fileName={selectedAsset.fileName}
+              className="w-full h-full object-cover"
+            />
+          </div>
 
           <div className="flex justify-end mt-4 space-x-4">
             <Link 
@@ -183,14 +184,23 @@ export default function AdminAnimationsPage() {
             onClick={() => setSelectedAsset(asset)}
           >
             {/* Thumbnail */}
-            <div className="aspect-video mb-4">
-              <MediaRenderer
-                fileCid={asset.fileCid}
-                thumbnailCid={asset.thumbnailCid}
-                mimeType={asset.mimeType}
-                fileName={asset.fileName}
-                className="w-full h-full object-cover rounded-lg"
-              />
+            <div className="aspect-video mb-4 bg-black rounded-lg overflow-hidden">
+              {asset.fileCid ? (
+                <MediaRenderer
+                  fileCid={asset.fileCid}
+                  thumbnailCid={asset.thumbnailCid}
+                  mimeType={asset.mimeType}
+                  fileName={asset.fileName}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-white/5">
+                  <div className="text-center">
+                    <div className="text-4xl mb-2">🎬</div>
+                    <div className="text-sm mv-text-muted">No video available</div>
+                  </div>
+                </div>
+              )}
             </div>
             
             {/* Info */}
