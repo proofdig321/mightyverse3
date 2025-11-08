@@ -585,13 +585,13 @@ class EnhancedDataManager {
               name: item.name,
               cid: item.file_cid,
               issue: 'CID validation failed',
-              error: error.message
+              error: error instanceof Error ? error.message : String(error)
             });
           }
         }
       }
     } catch (error) {
-      issues.push({ issue: 'Content validation failed', error: error.message });
+      issues.push({ issue: 'Content validation failed', error: error instanceof Error ? error.message : String(error) });
     }
     
     return { valid: issues.length === 0, issues };
