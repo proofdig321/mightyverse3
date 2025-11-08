@@ -1,45 +1,10 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
-
-// HLS Video Player Component
-function HLSVideoPlayer({ src, poster, className }: { src: string; poster?: string; className?: string }) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-    
-    if (video.canPlayType('application/vnd.apple.mpegurl')) {
-      video.src = src;
-    } else {
-      import('hls.js').then(({ default: Hls }) => {
-        if (Hls.isSupported()) {
-          const hls = new Hls();
-          hls.loadSource(src);
-          hls.attachMedia(video);
-        }
-      }).catch(() => {
-        video.src = src;
-      });
-    }
-  }, [src]);
-  
-  return (
-    <video
-      ref={videoRef}
-      controls
-      className={className}
-      poster={poster}
-    >
-      Your browser does not support video playback.
-    </video>
-  );
-}
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import MediaRenderer from '../../components/media/media-renderer';
-import HolographicVideoPlayer from '../../components/HolographicVideoPlayer';
 import Breadcrumb from '../../components/Breadcrumb';
+import { HeroCanvas } from '../deck/[deckId]/components/HeroCanvas';
 import { enhancedDataManager } from '../../utils/storage/enhanced-data-store';
 import Pagination from '../../components/shared/pagination';
 
@@ -68,6 +33,7 @@ interface Asset {
     }>;
     isrc?: string;
     livepeer_playback_url?: string;
+    livepeer_playback_id?: string;
     livepeer_thumbnail_url?: string;
     upload_method?: string;
   };
@@ -158,24 +124,18 @@ export default function Animations() {
                 </div>
               </div>
               
-              {/* Video Player */}
-              {selectedAsset.metadata?.livepeer_playback_url ? (
-                <HLSVideoPlayer
-                  src={selectedAsset.metadata.livepeer_playback_url}
-                  poster={selectedAsset.metadata?.livepeer_thumbnail_url}
-                  className="w-full h-96 md:h-[500px] lg:h-[600px] rounded-lg"
+              {/* Enhanced Holographic Video Player */}
+              <div className="w-full aspect-video max-w-4xl mx-auto">
+                <HeroCanvas
+                  playbackId={selectedAsset.metadata?.livepeer_playback_id}
+                  ipfsCid={selectedAsset.fileCid || selectedAsset.file_cid}
+                  isPlaying={false}
+                  currentTime={0}
+                  onTimeUpdate={() => {}}
+                  animatorVersion="enhanced"
+                  className="w-full h-full rounded-xl overflow-hidden"
                 />
-              ) : (
-                <HolographicVideoPlayer
-                  fileCid={selectedAsset.fileCid}
-                  thumbnailCid={selectedAsset.thumbnailCid}
-                  mimeType={selectedAsset.mimeType}
-                  fileName={selectedAsset.fileName}
-                  renditions={(selectedAsset.metadata as any)?.renditions}
-                  title={selectedAsset.name}
-                  className="w-full h-96 md:h-[500px] lg:h-[600px]"
-                />
-              )}
+              </div>
             </div>
           </div>
         )}

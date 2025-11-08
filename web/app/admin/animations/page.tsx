@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRBAC } from '../../auth/rbac-provider';
-import { dataManager } from '../../../utils/storage/data-store';
+import { enhancedDataManager } from '../../../utils/storage/enhanced-data-store';
 import NavigationHeader from '../../../components/shared/navigation-header';
 import Pagination from '../../../components/shared/pagination';
 import MediaRenderer from '../../../components/media/media-renderer';
@@ -12,8 +12,9 @@ import Link from 'next/link';
 interface Asset {
   id: string;
   name: string;
-  type: string;
-  status: 'pending' | 'approved' | 'rejected';
+  type?: string;
+  asset_type?: string;
+  status: 'pending' | 'approved' | 'rejected' | 'published';
   fileCid?: string;
   thumbnailCid?: string;
   fileName?: string;
@@ -46,10 +47,10 @@ export default function AdminAnimationsPage() {
   const totalPages = Math.ceil(assets.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const filteredAssets = assets.filter(asset => {
-    const isAnimation = asset.type === 'animation' || asset.type === 'video' || asset.mimeType?.startsWith('video/');
+    const isAnimation = asset.asset_type === 'video' || asset.type === 'animation' || asset.type === 'video' || asset.mimeType?.startsWith('video/');
     if (!isAnimation) return false;
     if (statusFilter === 'all') return true;
-    return asset.status === statusFilter;
+    return asset.status === statusFilter || (statusFilter === 'approved' && asset.status === 'published');
   });
   const paginatedAssets = filteredAssets.slice(startIndex, startIndex + itemsPerPage);
 
@@ -59,10 +60,10 @@ export default function AdminAnimationsPage() {
 
   const loadAssets = async () => {
     try {
-      const data = await dataManager.getData('assets');
-      setAssets(data);
+      const data = await enhancedDataManager.getData('assets');
+      setAssets(data as Asset[]);
       if (data.length > 0) {
-        setSelectedAsset(data[0]);
+        setSelectedAsset(data[0] as Asset);
       }
     } catch (error) {
       console.error('Failed to load assets:', error);
@@ -73,7 +74,7 @@ export default function AdminAnimationsPage() {
 
   const handleStatusChange = async (id: string, newStatus: 'approved' | 'rejected') => {
     try {
-      await dataManager.updateItem('assets', id, { status: newStatus });
+      await enhancedDataManager.updateItem('assets', id, { status: newStatus });
       await loadAssets();
     } catch (error) {
       console.error('Failed to update status:', error);
@@ -82,7 +83,7 @@ export default function AdminAnimationsPage() {
 
   const handleCuratedToggle = async (id: string, currentCurated: boolean) => {
     try {
-      await dataManager.updateItem('assets', id, { curated: !currentCurated });
+      await enhancedDataManager.updateItem('assets', id, { curated: !currentCurated });
       await loadAssets();
     } catch (error) {
       console.error('Failed to toggle curated status:', error);

@@ -31,11 +31,16 @@ interface AdAnchor {
 }
 
 interface HeroCanvasProps {
-  card: CardData;
+  card?: CardData;
   isPlaying: boolean;
   currentTime: number;
   onTimeUpdate: (time: number) => void;
   animatorVersion: string;
+  // New Livepeer/HLS support
+  playbackId?: string;
+  hlsUrl?: string;
+  ipfsCid?: string;
+  className?: string;
 }
 
 interface Layer {
@@ -45,14 +50,17 @@ interface Layer {
   holographicShift: number;
 }
 
-export function HeroCanvas({ card, isPlaying, currentTime, onTimeUpdate, animatorVersion }: HeroCanvasProps) {
+export function HeroCanvas({ card, isPlaying, currentTime, onTimeUpdate, animatorVersion, playbackId, hlsUrl, ipfsCid, className }: HeroCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const hlsRef = useRef<any>(null);
   const animationRef = useRef<number>();
   const [layers, setLayers] = useState<Layer[]>([]);
   const [depthMap, setDepthMap] = useState<ImageData | null>(null);
   const [mousePosition, setMousePosition] = useState({ x: 0.5, y: 0.5 });
   const [holographicIntensity, setHolographicIntensity] = useState(0.8);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [videoTexture, setVideoTexture] = useState<any>(null);
 
   // Holographic effect parameters
   const holographicConfig = {
@@ -66,8 +74,12 @@ export function HeroCanvas({ card, isPlaying, currentTime, onTimeUpdate, animato
   };
 
   useEffect(() => {
-    loadCardLayers();
-  }, [card]);
+    if (card) {
+      loadCardLayers();
+    } else if (playbackId || hlsUrl || ipfsCid) {
+      loadVideoSource();
+    }
+  }, [card, playbackId, hlsUrl, ipfsCid]);
 
   useEffect(() => {
     if (isPlaying && layers.length > 0) {
@@ -76,10 +88,73 @@ export function HeroCanvas({ card, isPlaying, currentTime, onTimeUpdate, animato
       stopAnimation();
     }
 
-    return () => stopAnimation();
+    return () => {
+      stopAnimation();
+      // Cleanup HLS instance
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+        hlsRef.current = null;
+      }
+    };
   }, [isPlaying, layers]);
 
+  const loadVideoSource = async () => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    try {
+      setIsLoaded(false);
+      
+      // Cleanup previous HLS instance
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+        hlsRef.current = null;
+      }
+
+      const getHlsSource = () => {
+        if (playbackId) return `https://vod-cdn.lp-playback.studio/raw/jxf4iblf6wlsyor6526t4tcmtmqa/catalyst-vod-com/hls/${playbackId}/index.m3u8`;
+        if (hlsUrl) return hlsUrl;
+        if (ipfsCid) return `https://gateway.pinata.cloud/ipfs/${ipfsCid}`;
+        return null;
+      };
+
+      const src = getHlsSource();
+      if (!src) return;
+
+      // Native HLS support (Safari/iOS)
+      if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = src;
+        video.addEventListener('loadedmetadata', () => {
+          setIsLoaded(true);
+        });
+        return;
+      }
+
+      // Use HLS.js for other browsers
+      const { default: Hls } = await import('hls.js');
+      if (Hls.isSupported()) {
+        const hls = new Hls({ enableWorker: true, maxBufferLength: 30 });
+        hlsRef.current = hls;
+        hls.loadSource(src);
+        hls.attachMedia(video);
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          setIsLoaded(true);
+        });
+        hls.on(Hls.Events.ERROR, (event, data) => {
+          console.error('HLS error:', event, data);
+        });
+      } else {
+        video.src = src;
+        setIsLoaded(true);
+      }
+    } catch (error) {
+      console.error('Failed to load video source:', error);
+    }
+  };
+
   const loadCardLayers = async () => {
+    if (!card) return;
+    
     try {
       setIsLoaded(false);
       const layerPromises = [
@@ -161,7 +236,8 @@ export function HeroCanvas({ card, isPlaying, currentTime, onTimeUpdate, animato
 
   const render = (timestamp: number) => {
     const canvas = canvasRef.current;
-    if (!canvas || layers.length === 0) return;
+    const video = videoRef.current;
+    if (!canvas) return;
 
     const ctx = canvas.getContext('2d')!;
     const { width, height } = canvas;
@@ -175,20 +251,33 @@ export function HeroCanvas({ card, isPlaying, currentTime, onTimeUpdate, animato
     const mouseOffsetX = (mousePosition.x - 0.5) * holographicConfig.parallaxStrength;
     const mouseOffsetY = (mousePosition.y - 0.5) * holographicConfig.parallaxStrength;
 
-    // Render each layer with holographic effects
-    layers.forEach((layer, index) => {
-      renderHolographicLayer(ctx, layer, {
+    // Render video with holographic effects if available
+    if (video && video.readyState >= 2) {
+      renderHolographicVideo(ctx, video, {
         time,
         mouseOffsetX,
         mouseOffsetY,
         width,
-        height,
-        layerIndex: index
+        height
       });
-    });
+    }
+
+    // Render card layers if available
+    if (layers.length > 0) {
+      layers.forEach((layer, index) => {
+        renderHolographicLayer(ctx, layer, {
+          time,
+          mouseOffsetX,
+          mouseOffsetY,
+          width,
+          height,
+          layerIndex: index
+        });
+      });
+    }
 
     // Render ad anchors with holographic highlights
-    if (card.adAnchors) {
+    if (card?.adAnchors) {
       renderHolographicAnchors(ctx, card.adAnchors, { width, height, time });
     }
 
@@ -197,6 +286,36 @@ export function HeroCanvas({ card, isPlaying, currentTime, onTimeUpdate, animato
 
     // Add chromatic aberration effect
     renderChromaticAberration(ctx, { width, height });
+  };
+
+  const renderHolographicVideo = (
+    ctx: CanvasRenderingContext2D,
+    video: HTMLVideoElement,
+    params: {
+      time: number;
+      mouseOffsetX: number;
+      mouseOffsetY: number;
+      width: number;
+      height: number;
+    }
+  ) => {
+    const { time, mouseOffsetX, mouseOffsetY, width, height } = params;
+
+    ctx.save();
+
+    // Apply holographic transformations
+    const holographicX = Math.sin(time) * 2;
+    const holographicY = Math.cos(time * 0.7) * 1;
+    const parallaxX = mouseOffsetX * 0.5;
+    const parallaxY = mouseOffsetY * 0.5;
+
+    ctx.globalAlpha = holographicConfig.hologramOpacity + Math.sin(time * 2) * 0.1;
+    ctx.filter = `brightness(${0.8 + Math.sin(time * 3) * 0.2}) hue-rotate(${Math.sin(time) * 10}deg)`;
+
+    ctx.translate(parallaxX + holographicX, parallaxY + holographicY);
+    ctx.drawImage(video, 0, 0, width, height);
+
+    ctx.restore();
   };
 
   const renderHolographicLayer = (
@@ -368,14 +487,14 @@ export function HeroCanvas({ card, isPlaying, currentTime, onTimeUpdate, animato
 
   const handleCanvasClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
-    if (!canvas || !card.adAnchors) return;
+    if (!canvas || !card?.adAnchors) return;
 
     const rect = canvas.getBoundingClientRect();
     const x = (event.clientX - rect.left) / rect.width;
     const y = (event.clientY - rect.top) / rect.height;
 
     // Check if click is on an ad anchor
-    const clickedAnchor = card.adAnchors.find(anchor =>
+    const clickedAnchor = card?.adAnchors?.find(anchor =>
       x >= anchor.x && x <= anchor.x + anchor.width &&
       y >= anchor.y && y <= anchor.y + anchor.height
     );
@@ -405,7 +524,18 @@ export function HeroCanvas({ card, isPlaying, currentTime, onTimeUpdate, animato
   }, []);
 
   return (
-    <div className="relative w-full h-full overflow-hidden">
+    <div className={`relative w-full h-full overflow-hidden ${className || ''}`}>
+      {/* Hidden video element for HLS/Livepeer */}
+      {(playbackId || hlsUrl || ipfsCid) && (
+        <video
+          ref={videoRef}
+          playsInline
+          muted
+          className="absolute inset-0 w-full h-full object-cover opacity-0 pointer-events-none"
+          onPlay={() => startAnimation()}
+          onPause={() => stopAnimation()}
+        />
+      )}
       <canvas
         ref={canvasRef}
         className="w-full h-full cursor-pointer"
@@ -432,6 +562,10 @@ export function HeroCanvas({ card, isPlaying, currentTime, onTimeUpdate, animato
         </div>
 
         <div className="text-xs text-gray-400">
+          <div className="flex justify-between">
+            <span>Source:</span>
+            <span>{playbackId ? 'Livepeer' : ipfsCid ? 'IPFS' : card ? 'Layers' : 'None'}</span>
+          </div>
           <div className="flex justify-between">
             <span>Layers:</span>
             <span>{layers.length}</span>
