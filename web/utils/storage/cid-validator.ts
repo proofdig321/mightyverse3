@@ -11,7 +11,7 @@ export interface CIDValidationResult {
 export class CIDValidator {
   private static readonly VALID_CID_PREFIXES = ['Qm', 'bafy', 'bafk', 'bafz'];
   private static readonly MIN_CID_LENGTH = 46;
-  private static readonly MAX_CID_LENGTH = 100;
+  private static readonly MAX_CID_LENGTH = 62;
 
   static validate(cid: string): CIDValidationResult {
     if (!cid || typeof cid !== 'string') {
@@ -31,7 +31,8 @@ export class CIDValidator {
     if (trimmedCid.length > this.MAX_CID_LENGTH) {
       return { 
         isValid: false, 
-        error: `CID too long (${trimmedCid.length} chars, maximum ${this.MAX_CID_LENGTH})`
+        error: `CID too long (${trimmedCid.length} chars, maximum ${this.MAX_CID_LENGTH})`,
+        suggestion: 'CID appears to be concatenated or corrupted'
       };
     }
 

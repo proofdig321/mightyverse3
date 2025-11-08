@@ -65,8 +65,8 @@ export default function MediaRenderer({
     );
   }
 
-  const fileUrl = gateway.includes(fileCid) ? gateway : `${gateway}${fileCid}`;
-  const thumbnailUrl = thumbnailCid ? (gateway.includes(thumbnailCid) ? gateway : `${gateway}${thumbnailCid}`) : null;
+  const fileUrl = gateway.endsWith(fileCid) ? gateway : `${gateway}${fileCid}`;
+  const thumbnailUrl = thumbnailCid ? (gateway.endsWith(thumbnailCid) ? gateway : `${gateway}${thumbnailCid}`) : null;
 
   if (error) {
     return (
