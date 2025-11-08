@@ -166,8 +166,9 @@ class EnhancedDataManager {
           throw error;
         }
         
-        this.cache.set(table, data || []);
-        return data || [];
+        const normalizedData = this.normalizeData(data || []);
+        this.cache.set(table, normalizedData);
+        return normalizedData;
       } else {
         // Enhanced fallback with localStorage persistence
         const mockData = this.getMockData(table);
@@ -536,6 +537,22 @@ class EnhancedDataManager {
 
   async getOptimizedLivepeerUrl(playbackId: string): Promise<string> {
     return gatewayManager.getLivepeerUrl(playbackId);
+  }
+
+  // Data normalization for property mapping
+  private normalizeData(data: any[]): any[] {
+    return data.map(item => ({
+      ...item,
+      // Add camelCase aliases for snake_case database fields
+      fileCid: item.fileCid || item.file_cid,
+      thumbnailCid: item.thumbnailCid || item.thumbnail_cid,
+      fileName: item.fileName || item.file_name,
+      mimeType: item.mimeType || item.mime_type,
+      assetType: item.assetType || item.asset_type,
+      creatorWallet: item.creatorWallet || item.creator_wallet,
+      createdAt: item.createdAt || item.created_at,
+      updatedAt: item.updatedAt || item.updated_at
+    }));
   }
 
   // System health check
