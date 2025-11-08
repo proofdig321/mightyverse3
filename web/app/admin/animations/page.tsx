@@ -58,9 +58,11 @@ export default function AdminAnimationsPage() {
   const paginatedAssets = filteredAssets.slice(startIndex, startIndex + itemsPerPage);
 
   useEffect(() => {
-    // Clear cache to get fresh data after database updates
-    enhancedDataManager.clearCache('assets');
-    loadAssets();
+    // Force hard cache clear and reload
+    enhancedDataManager.clearCache();
+    setTimeout(() => {
+      loadAssets();
+    }, 100);
   }, []);
 
   const loadAssets = async () => {
