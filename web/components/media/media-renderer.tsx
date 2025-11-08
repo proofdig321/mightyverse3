@@ -65,9 +65,9 @@ export default function MediaRenderer({
     );
   }
 
-  const fileUrl = gateway.includes('/ipfs/') && gateway.length > 20 ? gateway : `${gateway}${fileCid}`;
+  const fileUrl = (gateway.includes('/ipfs/') && gateway.length > 20) ? gateway : `${gateway}${fileCid}`;
   const thumbnailUrl = thumbnailCid ? 
-    (gateway.includes('/ipfs/') && gateway.length > 20 ? `https://ipfs.io/ipfs/${thumbnailCid}` : `${gateway}${thumbnailCid}`) : null;
+    `https://ipfs.io/ipfs/${thumbnailCid}` : null;
 
   if (error) {
     return (

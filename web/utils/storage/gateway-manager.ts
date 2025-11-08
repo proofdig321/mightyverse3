@@ -38,6 +38,11 @@ class GatewayManager {
   }
 
   async getIPFSUrl(cid: string): Promise<string> {
+    // Check for null/undefined/empty CID
+    if (!cid || cid.trim() === '') {
+      throw new Error('CID is required and cannot be empty');
+    }
+
     // Validate CID format
     const validation = validateCID(cid);
     if (!validation.isValid) {
