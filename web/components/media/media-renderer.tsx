@@ -22,11 +22,11 @@ export default function MediaRenderer({
   const [livepeerPlaybackId, setLivepeerPlaybackId] = useState<string | null>(null);
   const [useIpfs, setUseIpfs] = useState(false);
   
-  // Use multiple gateways for better reliability
+  // Use multiple gateways for better reliability and CORB avoidance
   const gateways = [
-    'https://ipfs.io/ipfs/',
     'https://cloudflare-ipfs.com/ipfs/',
-    'https://dweb.link/ipfs/'
+    'https://dweb.link/ipfs/',
+    'https://ipfs.io/ipfs/'
   ];
   const gateway = gateways[0];
   
@@ -57,8 +57,8 @@ export default function MediaRenderer({
     );
   }
 
-  const fileUrl = `${gateway}${fileCid}`;
-  const thumbnailUrl = thumbnailCid ? `${gateway}${thumbnailCid}` : null;
+  const fileUrl = `${gateway}${fileCid}?cache-bust=${Date.now()}`;
+  const thumbnailUrl = thumbnailCid ? `${gateway}${thumbnailCid}?cache-bust=${Date.now()}` : null;
 
   if (error) {
     return (
@@ -150,8 +150,7 @@ export default function MediaRenderer({
           <video
             controls
             controlsList="nodownload"
-            preload="metadata"
-            crossOrigin="anonymous"
+            preload="none"
             playsInline
             autoPlay={fileName?.includes('.gif')}
             loop={fileName?.includes('.gif')}
@@ -162,19 +161,15 @@ export default function MediaRenderer({
             onLoadedData={() => setLoading(false)}
             onCanPlay={() => setLoading(false)}
             onError={(e) => {
-              console.error('MediaRenderer video error:', e);
-              console.error('Video URL:', fileUrl);
-              // Try alternative gateways
               const currentTarget = e.target as HTMLVideoElement;
               const currentSrc = currentTarget.src;
               
-              // Find next gateway to try
               const currentGatewayIndex = gateways.findIndex(g => currentSrc.includes(g.replace('https://', '').split('/')[0]));
               const nextGatewayIndex = currentGatewayIndex + 1;
               
               if (nextGatewayIndex < gateways.length && fileCid) {
                 const nextGateway = gateways[nextGatewayIndex];
-                currentTarget.src = `${nextGateway}${fileCid}`;
+                currentTarget.src = `${nextGateway}${fileCid}?t=${Date.now()}`;
               } else {
                 setError(true);
               }
@@ -182,7 +177,6 @@ export default function MediaRenderer({
             style={{ objectFit: 'contain' }}
           >
             <source src={fileUrl} type={mimeType || 'video/mp4'} />
-            <track kind="captions" />
             Your browser does not support video playback.
           </video>
         )}
