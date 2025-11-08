@@ -67,9 +67,8 @@ export default function AdminAnimationsPage() {
     try {
       const data = await enhancedDataManager.getData('assets');
       setAssets(data as Asset[]);
-      if (data.length > 0) {
-        setSelectedAsset(data[0] as Asset);
-      }
+      // Don't auto-select first asset to avoid duplicate display
+      setSelectedAsset(null);
     } catch (error) {
       console.error('Failed to load assets:', error);
     } finally {
