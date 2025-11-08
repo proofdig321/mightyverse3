@@ -4,6 +4,8 @@
  */
 
 import { supabase as supabaseClient } from '../supabase/client';
+import { schemaSyncManager } from './schema-sync';
+import { gatewayManager } from './gateway-manager';
 
 interface DataItem {
   id: string;
@@ -60,6 +62,9 @@ class EnhancedDataManager {
     if (!this.useSupabase) {
       console.warn('EnhancedDataManager: Using localStorage fallback - Supabase not configured');
       this.initializeMockData();
+    } else {
+      // Initialize schema sync in background
+      this.initializeSchemaSync();
     }
   }
 
@@ -331,10 +336,13 @@ class EnhancedDataManager {
   async updateItem(table: string, id: string, updates: Partial<DataItem>): Promise<DataItem> {
     try {
       if (this.useSupabase) {
+        // Handle schema-safe updates
+        const safeUpdates = await this.sanitizeUpdates(table, updates);
+        
         const { data, error } = await supabaseClient
           .from(table)
           .update({
-            ...updates,
+            ...safeUpdates,
             updated_at: new Date().toISOString()
           })
           .eq('id', id)
@@ -343,6 +351,11 @@ class EnhancedDataManager {
 
         if (error) {
           console.warn(`Supabase update error for ${table}:`, error.message);
+          // Check if it's a schema issue
+          if (error.message.includes('column') && error.message.includes('does not exist')) {
+            console.log('Schema issue detected, triggering sync...');
+            await this.handleSchemaIssue(table, error.message);
+          }
           // Fall back to localStorage update
           return this.updateItemInLocalStorage(table, id, updates);
         }
@@ -559,7 +572,73 @@ class EnhancedDataManager {
       )
     );
   }
+
+  // Schema synchronization methods
+  private async initializeSchemaSync() {
+    try {
+      const result = await schemaSyncManager.validateAndSync();
+      if (result.changes.length > 0) {
+        console.log('Schema sync completed:', result.changes);
+      }
+      if (result.errors.length > 0) {
+        console.warn('Schema sync issues:', result.errors);
+      }
+    } catch (error) {
+      console.warn('Schema sync initialization failed:', error);
+    }
+  }
+
+  private async sanitizeUpdates(table: string, updates: Partial<DataItem>): Promise<Partial<DataItem>> {
+    // Remove undefined values and handle known schema issues
+    const sanitized: Partial<DataItem> = {};
+    
+    for (const [key, value] of Object.entries(updates)) {
+      if (value !== undefined) {
+        // Handle boolean conversion for is_curated
+        if (key === 'is_curated' || key === 'curated') {
+          sanitized[key] = Boolean(value);
+        } else {
+          sanitized[key] = value;
+        }
+      }
+    }
+    
+    return sanitized;
+  }
+
+  private async handleSchemaIssue(table: string, errorMessage: string) {
+    console.log(`Handling schema issue for ${table}: ${errorMessage}`);
+    // Trigger background schema sync
+    schemaSyncManager.validateAndSync().catch(error => {
+      console.warn('Background schema sync failed:', error);
+    });
+  }
+
+  // Gateway management integration
+  async getOptimizedIPFSUrl(cid: string): Promise<string> {
+    return gatewayManager.getIPFSUrl(cid);
+  }
+
+  async getOptimizedLivepeerUrl(playbackId: string): Promise<string> {
+    return gatewayManager.getLivepeerUrl(playbackId);
+  }
+
+  // System health check
+  async getSystemHealth() {
+    const schemaHealth = await schemaSyncManager.checkSchemaHealth();
+    const gatewayStatus = gatewayManager.getGatewayStatus();
+    const cacheInfo = this.getCacheInfo();
+    
+    return {
+      schema: schemaHealth,
+      gateways: gatewayStatus,
+      cache: cacheInfo,
+      timestamp: new Date().toISOString()
+    };
+  }
 }
 
 export const enhancedDataManager = new EnhancedDataManager();
 export type { Asset, Mural, ProcessingJob };
+export { gatewayManager } from './gateway-manager';
+export { schemaSyncManager } from './schema-sync';

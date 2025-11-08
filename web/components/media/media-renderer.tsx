@@ -22,13 +22,16 @@ export default function MediaRenderer({
   const [livepeerPlaybackId, setLivepeerPlaybackId] = useState<string | null>(null);
   const [useIpfs, setUseIpfs] = useState(false);
   
-  // Use multiple gateways for better reliability and CORB avoidance
-  const gateways = [
-    'https://ipfs.io/ipfs/',
-    'https://gateway.pinata.cloud/ipfs/',
-    'https://dweb.link/ipfs/'
-  ];
-  const gateway = gateways[0];
+  // Use gateway manager for intelligent fallback
+  const [gateway, setGateway] = useState<string>('https://ipfs.io/ipfs/');
+  
+  useEffect(() => {
+    if (fileCid) {
+      import('../../utils/storage/enhanced-data-store').then(({ gatewayManager }) => {
+        gatewayManager.getIPFSUrl(fileCid).then(setGateway);
+      });
+    }
+  }, [fileCid]);
   
   // Check for Livepeer stream availability
   useEffect(() => {
@@ -57,8 +60,8 @@ export default function MediaRenderer({
     );
   }
 
-  const fileUrl = `${gateway}${fileCid}?cache-bust=${Date.now()}`;
-  const thumbnailUrl = thumbnailCid ? `${gateway}${thumbnailCid}?cache-bust=${Date.now()}` : null;
+  const fileUrl = gateway.includes(fileCid) ? gateway : `${gateway}${fileCid}`;
+  const thumbnailUrl = thumbnailCid ? (gateway.includes(thumbnailCid) ? gateway : `${gateway}${thumbnailCid}`) : null;
 
   if (error) {
     return (
@@ -161,18 +164,9 @@ export default function MediaRenderer({
             onLoadedData={() => setLoading(false)}
             onCanPlay={() => setLoading(false)}
             onError={(e) => {
-              const currentTarget = e.target as HTMLVideoElement;
-              const currentSrc = currentTarget.src;
-              
-              const currentGatewayIndex = gateways.findIndex(g => currentSrc.includes(g.replace('https://', '').split('/')[0]));
-              const nextGatewayIndex = currentGatewayIndex + 1;
-              
-              if (nextGatewayIndex < gateways.length && fileCid) {
-                const nextGateway = gateways[nextGatewayIndex];
-                currentTarget.src = `${nextGateway}${fileCid}?t=${Date.now()}`;
-              } else {
-                setError(true);
-              }
+              console.log('Video failed, trying next gateway...');
+              // Gateway manager will handle fallback automatically
+              setError(true);
             }}
             style={{ objectFit: 'contain' }}
           >

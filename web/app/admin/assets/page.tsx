@@ -7,6 +7,7 @@ import AssetPreviewEnhanced from '../../../components/admin/asset-preview-enhanc
 import ContextualBreadcrumb from '../../../components/admin/contextual-breadcrumb';
 import NavigationHeader from '../../../components/shared/navigation-header';
 import Pagination from '../../../components/shared/pagination';
+import HealthMonitor from '../../../components/system/health-monitor';
 import Link from 'next/link';
 
 interface Asset {
@@ -106,6 +107,8 @@ export default function AssetsPage() {
         }
       />
 
+      <HealthMonitor />
+      
       <div className="mv-card p-6">
         {/* Asset Statistics */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">

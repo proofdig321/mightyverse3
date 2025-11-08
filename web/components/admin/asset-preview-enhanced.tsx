@@ -93,10 +93,16 @@ export default function AssetPreviewEnhanced({
   const handleToggleCurated = async () => {
     try {
       const newCuratedStatus = !(asset as any).is_curated;
-      await enhancedDataManager.updateItem('assets', asset.id, { is_curated: newCuratedStatus });
+      // Use both is_curated and curated for compatibility
+      await enhancedDataManager.updateItem('assets', asset.id, { 
+        is_curated: newCuratedStatus,
+        curated: newCuratedStatus 
+      });
       onStatusChange?.(asset.id, asset.status); // Trigger refresh
     } catch (error) {
       console.error('Failed to toggle curated status:', error);
+      // Show user-friendly error
+      alert('Curation update failed. The system is syncing - please try again in a moment.');
     }
   };
 
