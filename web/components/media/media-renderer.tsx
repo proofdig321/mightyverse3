@@ -24,9 +24,9 @@ export default function MediaRenderer({
   
   // Use multiple gateways for better reliability and CORB avoidance
   const gateways = [
-    'https://cloudflare-ipfs.com/ipfs/',
-    'https://dweb.link/ipfs/',
-    'https://ipfs.io/ipfs/'
+    'https://ipfs.io/ipfs/',
+    'https://gateway.pinata.cloud/ipfs/',
+    'https://dweb.link/ipfs/'
   ];
   const gateway = gateways[0];
   
