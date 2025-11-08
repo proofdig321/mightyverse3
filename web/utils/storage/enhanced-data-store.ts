@@ -555,16 +555,60 @@ class EnhancedDataManager {
     }));
   }
 
+  // Content validation for CID/MIME type mismatches
+  async validateContentIntegrity(table: string = 'assets'): Promise<{ valid: boolean; issues: any[] }> {
+    const issues: any[] = [];
+    
+    try {
+      const data = await this.getData(table);
+      
+      for (const item of data) {
+        if (item.file_cid && item.mime_type) {
+          try {
+            const url = await gatewayManager.getIPFSUrl(item.file_cid);
+            const response = await fetch(url, { method: 'HEAD' });
+            const actualMimeType = response.headers.get('content-type');
+            
+            if (actualMimeType && !actualMimeType.startsWith(item.mime_type.split('/')[0])) {
+              issues.push({
+                id: item.id,
+                name: item.name,
+                expected: item.mime_type,
+                actual: actualMimeType,
+                cid: item.file_cid,
+                issue: 'MIME type mismatch'
+              });
+            }
+          } catch (error) {
+            issues.push({
+              id: item.id,
+              name: item.name,
+              cid: item.file_cid,
+              issue: 'CID validation failed',
+              error: error.message
+            });
+          }
+        }
+      }
+    } catch (error) {
+      issues.push({ issue: 'Content validation failed', error: error.message });
+    }
+    
+    return { valid: issues.length === 0, issues };
+  }
+
   // System health check
   async getSystemHealth() {
     const schemaHealth = await schemaSyncManager.checkSchemaHealth();
     const gatewayStatus = gatewayManager.getGatewayStatus();
     const cacheInfo = this.getCacheInfo();
+    const contentIntegrity = await this.validateContentIntegrity();
     
     return {
       schema: schemaHealth,
       gateways: gatewayStatus,
       cache: cacheInfo,
+      content: contentIntegrity,
       timestamp: new Date().toISOString()
     };
   }

@@ -54,9 +54,17 @@ export default function MCPStatusPage() {
 
         {/* Gateway Status */}
         <div className="bg-white/5 border border-white/10 rounded-lg p-6">
-          <h2 className="text-xl font-semibent mb-4">Gateway Status</h2>
+          <h2 className="text-xl font-semibold mb-4">Gateway Status</h2>
           <pre className="text-sm bg-black/20 p-4 rounded overflow-auto">
             {JSON.stringify(systemHealth?.gateways, null, 2)}
+          </pre>
+        </div>
+
+        {/* Content Integrity */}
+        <div className="bg-white/5 border border-white/10 rounded-lg p-6">
+          <h2 className="text-xl font-semibold mb-4">Content Integrity</h2>
+          <pre className="text-sm bg-black/20 p-4 rounded overflow-auto">
+            {JSON.stringify(systemHealth?.content, null, 2)}
           </pre>
         </div>
       </div>
