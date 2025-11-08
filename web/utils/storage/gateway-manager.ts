@@ -3,6 +3,9 @@
  * Handles IPFS and Livepeer gateway failures with intelligent fallback
  */
 
+import { circuitBreaker } from './circuit-breaker';
+import { validateCID } from './cid-validator';
+
 interface GatewayConfig {
   url: string;
   priority: number;
@@ -35,6 +38,19 @@ class GatewayManager {
   }
 
   async getIPFSUrl(cid: string): Promise<string> {
+    // Validate CID format
+    const validation = validateCID(cid);
+    if (!validation.isValid) {
+      console.warn(`Invalid IPFS CID: ${cid} - ${validation.error}`);
+      throw new Error(`Invalid IPFS CID: ${cid} - ${validation.error}`);
+    }
+
+    // Check circuit breaker
+    if (circuitBreaker.isOpen(cid)) {
+      console.warn(`Circuit breaker open for CID: ${cid}`);
+      throw new Error(`Circuit breaker open for CID: ${cid}`);
+    }
+
     const cacheKey = `ipfs_${cid}`;
     const cached = this.cache.get(cacheKey);
     
@@ -51,16 +67,16 @@ class GatewayManager {
       
       if (await this.testUrl(url, gateway.timeout)) {
         this.cache.set(cacheKey, { url, timestamp: Date.now() });
+        circuitBreaker.recordSuccess(cid);
         return url;
       } else {
         this.markGatewayDegraded(gateway);
       }
     }
 
-    // Fallback to first gateway even if failed
-    const fallbackUrl = `${this.ipfsGateways[0].url}${cid}`;
-    this.cache.set(cacheKey, { url: fallbackUrl, timestamp: Date.now() });
-    return fallbackUrl;
+    // Record failure and throw error instead of fallback
+    circuitBreaker.recordFailure(cid);
+    throw new Error(`All IPFS gateways failed for CID: ${cid}`);
   }
 
   async getLivepeerUrl(playbackId: string): Promise<string> {

@@ -28,7 +28,12 @@ export default function MediaRenderer({
   useEffect(() => {
     if (fileCid) {
       import('../../utils/storage/enhanced-data-store').then(({ gatewayManager }) => {
-        gatewayManager.getIPFSUrl(fileCid).then(setGateway);
+        gatewayManager.getIPFSUrl(fileCid)
+          .then(setGateway)
+          .catch((err) => {
+            console.error('Gateway manager failed:', err);
+            setError(true);
+          });
       });
     }
   }, [fileCid]);
@@ -168,8 +173,7 @@ export default function MediaRenderer({
             onLoadedData={() => setLoading(false)}
             onCanPlay={() => setLoading(false)}
             onError={(e) => {
-              console.log('Video failed, trying next gateway...');
-              // Gateway manager will handle fallback automatically
+              console.error('Video failed:', e);
               setError(true);
             }}
             style={{ objectFit: 'contain' }}
