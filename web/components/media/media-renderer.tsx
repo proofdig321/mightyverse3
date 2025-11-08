@@ -76,6 +76,7 @@ export default function MediaRenderer({
     `https://ipfs.io/ipfs/${thumbnailCid}` : null;
   
   console.log('MediaRenderer URLs - fileUrl:', fileUrl, 'thumbnailUrl:', thumbnailUrl, 'gateway:', gateway);
+  console.log('MediaRenderer mimeType:', mimeType, 'fileName:', fileName);
 
   if (error) {
     return (
