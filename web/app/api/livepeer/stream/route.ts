@@ -33,6 +33,7 @@ export async function GET(request: NextRequest) {
       .single();
 
     if (error || !data) {
+      console.log(`No Livepeer stream found for CID: ${cid}`);
       return NextResponse.json({ playbackId: null });
     }
 

@@ -59,7 +59,7 @@ export default function AdminAnimationsPage() {
 
   useEffect(() => {
     // Force hard cache clear and reload
-    enhancedDataManager.clearCache();
+    enhancedDataManager.clearAllCaches();
     setTimeout(() => {
       loadAssets();
     }, 100);

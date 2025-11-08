@@ -167,6 +167,17 @@ class GatewayManager {
       cacheSize: this.cache.size
     };
   }
+
+  clearCache(cid?: string): void {
+    if (cid) {
+      this.cache.delete(`ipfs_${cid}`);
+      this.cache.delete(`livepeer_${cid}`);
+      circuitBreaker.reset(cid);
+    } else {
+      this.cache.clear();
+      circuitBreaker.resetAll();
+    }
+  }
 }
 
 export const gatewayManager = new GatewayManager();

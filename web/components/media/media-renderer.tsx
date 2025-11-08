@@ -21,6 +21,7 @@ export default function MediaRenderer({
   const [error, setError] = useState(false);
   const [livepeerPlaybackId, setLivepeerPlaybackId] = useState<string | null>(null);
   const [useIpfs, setUseIpfs] = useState(false);
+  const [livepeerFailed, setLivepeerFailed] = useState(false);
   
   // Use gateway manager for intelligent fallback
   const [gateway, setGateway] = useState<string>('https://ipfs.io/ipfs/');
@@ -43,9 +44,10 @@ export default function MediaRenderer({
   
   const [livepeerPlaybackUrl, setLivepeerPlaybackUrl] = useState<string | null>(null);
 
-  // Check for Livepeer stream availability
+  // Check for Livepeer stream availability (primary)
   useEffect(() => {
     if (fileCid && (mimeType?.startsWith('video/') || fileName?.match(/\.(mp4|mov|webm)$/i))) {
+      // First check existing stream
       fetch(`/api/livepeer/stream?cid=${fileCid}`)
         .then(res => res.json())
         .then(data => {
@@ -53,10 +55,30 @@ export default function MediaRenderer({
             setLivepeerPlaybackId(data.playbackId);
             setLivepeerPlaybackUrl(data.playbackUrl || null);
           } else {
-            setUseIpfs(true);
+            // Auto-import to Livepeer (primary strategy)
+            fetch(`/api/livepeer/import`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ cid: fileCid, name: fileName })
+            })
+            .then(res => res.json())
+            .then(importData => {
+              if (importData.playbackId) {
+                setLivepeerPlaybackId(importData.playbackId);
+                setLivepeerPlaybackUrl(importData.playbackUrl || null);
+              }
+              // Note: No fallback here - let video onError handle IPFS fallback
+            })
+            .catch(err => {
+              console.log('Livepeer import failed:', err);
+              // Let video onError handle IPFS fallback
+            });
           }
         })
-        .catch(() => setUseIpfs(true));
+        .catch(err => {
+          console.log('Livepeer stream check failed:', err);
+          // Let video onError handle IPFS fallback
+        });
     }
   }, [fileCid, mimeType, fileName]);
   
@@ -71,7 +93,7 @@ export default function MediaRenderer({
     );
   }
 
-  const fileUrl = gateway.endsWith(fileCid) ? gateway : `${gateway}${fileCid}`;
+  const fileUrl = gateway.includes(fileCid) ? gateway : `${gateway}${fileCid}`;
   const thumbnailUrl = thumbnailCid ? 
     `https://ipfs.io/ipfs/${thumbnailCid}` : null;
   
@@ -137,11 +159,12 @@ export default function MediaRenderer({
 
   // Video and Animation rendering
   if (mimeType?.startsWith('video/') || fileName?.match(/\.(mp4|mov|webm|gif)$/i)) {
-    const videoUrl = livepeerPlaybackId && !useIpfs 
+    const shouldUseLivepeer = livepeerPlaybackId && !livepeerFailed;
+    const videoUrl = shouldUseLivepeer
       ? (livepeerPlaybackUrl || `https://lp-playback.com/hls/${livepeerPlaybackId}/index.m3u8`)
       : fileUrl;
     
-    const isLivepeer = livepeerPlaybackId && !useIpfs;
+    const isLivepeer = shouldUseLivepeer;
     
     return (
       <div className="relative group">
@@ -159,7 +182,7 @@ export default function MediaRenderer({
             onCanPlay={() => setLoading(false)}
             onError={() => {
               console.log('Livepeer failed, falling back to IPFS');
-              setUseIpfs(true);
+              setLivepeerFailed(true);
             }}
             style={{ objectFit: 'contain' }}
           >
@@ -198,18 +221,22 @@ export default function MediaRenderer({
           <div className={`${className} absolute inset-0 bg-black/80 border border-white/10 rounded-lg flex flex-col items-center justify-center`}>
             <div className="animate-spin text-4xl mb-4 text-yellow-400">◈</div>
             <div className="text-white text-sm">
-              {isLivepeer ? 'Loading optimized stream...' : 'Loading content...'}
+              {isLivepeer ? 'Loading optimized stream...' : 'Loading from IPFS...'}
             </div>
             <div className="text-xs mv-text-muted mt-2 break-all max-w-xs">
-              {isLivepeer ? 'Livepeer CDN' : fileUrl}
+              {isLivepeer ? 'Livepeer CDN' : 'IPFS Fallback'}
             </div>
           </div>
         )}
         
         {/* Performance Indicator */}
-        {isLivepeer && (
+        {isLivepeer ? (
           <div className="absolute top-2 right-2 bg-green-500/80 text-white text-xs px-2 py-1 rounded">
             ⚡ Fast
+          </div>
+        ) : livepeerFailed && (
+          <div className="absolute top-2 right-2 bg-yellow-500/80 text-white text-xs px-2 py-1 rounded">
+            📡 IPFS
           </div>
         )}
         

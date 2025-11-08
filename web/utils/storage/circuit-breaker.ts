@@ -56,6 +56,10 @@ class CircuitBreaker {
   reset(key: string): void {
     this.circuits.delete(key);
   }
+
+  resetAll(): void {
+    this.circuits.clear();
+  }
 }
 
 export const circuitBreaker = new CircuitBreaker();

@@ -427,6 +427,15 @@ class EnhancedDataManager {
     }
   }
 
+  // Clear all caches including gateway manager
+  clearAllCaches(): void {
+    this.cache.clear();
+    gatewayManager.clearCache();
+    this.subscribers.forEach((_, table) => {
+      this.notifySubscribers(table);
+    });
+  }
+
   // Get comprehensive system status
   getCacheInfo() {
     return {
