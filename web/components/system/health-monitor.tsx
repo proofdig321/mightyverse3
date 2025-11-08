@@ -126,6 +126,21 @@ export default function HealthMonitor() {
               Sync Schema
             </button>
           )}
+          <button
+            onClick={async () => {
+              try {
+                const response = await fetch('/api/sync/livepeer', { method: 'POST' });
+                const result = await response.json();
+                alert(result.success ? `Synced ${result.updates?.length || 0} assets` : `Sync failed: ${result.error}`);
+                checkHealth();
+              } catch (error) {
+                alert('Livepeer sync failed');
+              }
+            }}
+            className="mt-2 px-2 py-1 bg-purple-600 text-white rounded text-xs hover:bg-purple-700"
+          >
+            Sync Livepeer
+          </button>
         </div>
 
         {/* Gateway Status */}
