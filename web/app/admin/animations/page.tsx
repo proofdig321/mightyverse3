@@ -154,10 +154,10 @@ export default function AdminAnimationsPage() {
 
           <div className="aspect-video bg-black rounded-lg overflow-hidden">
             <MediaRenderer
-              fileCid={selectedAsset.fileCid}
-              thumbnailCid={selectedAsset.thumbnailCid}
-              mimeType={selectedAsset.mimeType}
-              fileName={selectedAsset.fileName}
+              fileCid={selectedAsset.fileCid || selectedAsset.file_cid}
+              thumbnailCid={selectedAsset.thumbnailCid || selectedAsset.thumbnail_cid}
+              mimeType={selectedAsset.mimeType || selectedAsset.mime_type}
+              fileName={selectedAsset.fileName || selectedAsset.file_name}
               className="w-full h-full object-cover"
             />
           </div>
@@ -185,12 +185,12 @@ export default function AdminAnimationsPage() {
           >
             {/* Thumbnail */}
             <div className="aspect-video mb-4 bg-black rounded-lg overflow-hidden">
-              {asset.fileCid ? (
+              {(asset.fileCid || asset.file_cid) ? (
                 <MediaRenderer
-                  fileCid={asset.fileCid}
-                  thumbnailCid={asset.thumbnailCid}
-                  mimeType={asset.mimeType}
-                  fileName={asset.fileName}
+                  fileCid={asset.fileCid || asset.file_cid}
+                  thumbnailCid={asset.thumbnailCid || asset.thumbnail_cid}
+                  mimeType={asset.mimeType || asset.mime_type}
+                  fileName={asset.fileName || asset.file_name}
                   className="w-full h-full object-cover"
                 />
               ) : (

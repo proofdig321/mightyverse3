@@ -26,15 +26,18 @@ export default function MediaRenderer({
   const [gateway, setGateway] = useState<string>('https://ipfs.io/ipfs/');
   
   useEffect(() => {
+    console.log('MediaRenderer fileCid:', fileCid, 'type:', typeof fileCid);
     if (fileCid && fileCid.trim() !== '') {
       import('../../utils/storage/enhanced-data-store').then(({ gatewayManager }) => {
         gatewayManager.getIPFSUrl(fileCid)
           .then(setGateway)
           .catch((err) => {
-            console.error('Gateway manager failed:', err);
+            console.error('Gateway manager failed for CID:', fileCid, 'Error:', err);
             setError(true);
           });
       });
+    } else {
+      console.log('Skipping gateway manager - invalid fileCid:', fileCid);
     }
   }, [fileCid]);
   
