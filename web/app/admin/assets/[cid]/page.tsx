@@ -119,7 +119,7 @@ export default function AssetDetailPage() {
       try {
         const response = await fetch('/api/assets');
         const data = await response.json();
-        const foundAsset = data.assets?.find((a: any) => a.id === assetId);
+        const foundAsset = data.data?.find((a: any) => a.id === assetId);
         
         if (foundAsset) {
           setAsset({
@@ -127,30 +127,33 @@ export default function AssetDetailPage() {
             title: foundAsset.name,
             animator: foundAsset.creator_wallet,
             submittedAt: foundAsset.created_at,
-            status: foundAsset.status === 'approved' ? 'approved' : 'pending',
+            status: foundAsset.status,
             metadata: {
-              confidence: 0.92,
+              confidence: foundAsset.quality_score || 0.85,
               issues: [],
               tags: foundAsset.tags || [],
-              duration: foundAsset.metadata?.duration || 0,
-              dimensions: { width: 1920, height: 1080 },
-              livepeer_playback_url: foundAsset.metadata?.livepeer_playback_url,
+              duration: foundAsset.metadata?.duration || foundAsset.duration || 0,
+              dimensions: foundAsset.metadata?.dimensions || { width: 1920, height: 1080 },
+              livepeer_playback_url: foundAsset.livepeer_playback_url,
               livepeer_thumbnail_url: foundAsset.metadata?.livepeer_thumbnail_url,
               upload_method: foundAsset.metadata?.upload_method
             },
             qcReport: {
-              depthMapQuality: 0.88,
+              depthMapQuality: foundAsset.quality_score || 0.85,
               segmentationAccuracy: 0.94,
               audioQuality: 0.91,
-              overallScore: 0.92,
-              recommendations: ['Asset ready for streaming']
+              overallScore: foundAsset.quality_score || 0.85,
+              recommendations: ['Real asset from production database']
             },
             files: {
-              bgLayer: foundAsset.metadata?.livepeer_playback_url || '/api/assets/asset_001/bg.png',
-              audioFile: foundAsset.metadata?.livepeer_playback_url || '/api/assets/asset_001/audio.mp3'
+              bgLayer: foundAsset.file_cid ? `https://ipfs.io/ipfs/${foundAsset.file_cid}` : '',
+              audioFile: foundAsset.livepeer_playback_url || (foundAsset.file_cid ? `https://ipfs.io/ipfs/${foundAsset.file_cid}` : '')
             },
             suggestedAnchors: []
           });
+        } else {
+          // Asset not found, redirect back
+          router.push('/admin/assets');
         }
       } catch (error) {
         console.error('Failed to fetch asset:', error);

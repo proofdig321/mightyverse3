@@ -129,7 +129,7 @@ export default function AssetPreview({ asset }: AssetPreviewProps) {
         }
       };
       
-      if (layer.url) {
+      if (layer.url && !layer.url.includes('placeholder')) {
         img.src = layer.url;
       }
     });

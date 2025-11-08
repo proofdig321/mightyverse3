@@ -68,129 +68,25 @@ class EnhancedDataManager {
     }
   }
 
-  // Initialize comprehensive mock data
+  // Initialize minimal fallback data only when Supabase is unavailable
   private initializeMockData() {
-    // Only initialize in browser environment
     if (typeof window === 'undefined') return;
     
-    const mockData = {
-      assets: [
-        {
-          id: '1',
-          name: 'Holographic Animation Test',
-          creator_wallet: '0x860Ec697167Ba865DdE1eC9e172004100613e970',
-          asset_type: 'video',
-          file_cid: 'QmVkvoPGi9jvvuxsHDVJDgzPEzagBaWSZRYoRDzU244HjZ',
-          status: 'approved',
-          quality_score: 0.95,
-          tags: ['holographic', 'animation', 'test'],
-          is_curated: true,
-          metadata: { 
-            upload_method: 'ipfs_direct',
-            description: 'Test holographic animation',
-            duration: 30,
-            format: 'mp4'
-          },
-          created_at: new Date(Date.now() - 86400000).toISOString(),
-          submittedBy: '0x860Ec697167Ba865DdE1eC9e172004100613e970',
-          submittedAt: new Date(Date.now() - 86400000).toISOString()
-        },
-        {
-          id: '2',
-          name: 'Livepeer Stream Test',
-          creator_wallet: '0x860Ec697167Ba865DdE1eC9e172004100613e970',
-          asset_type: 'video',
-          status: 'submitted',
-          quality_score: 0.88,
-          tags: ['livepeer', 'streaming'],
-          is_curated: false,
-          livepeer_playback_id: 'test123',
-          livepeer_playback_url: 'https://cdn.livepeer.studio/hls/test123/index.m3u8',
-          livepeer_status: 'ready',
-          export_status: 'completed',
-          metadata: { 
-            upload_method: 'livepeer_direct',
-            description: 'Livepeer streaming test',
-            duration: 45,
-            format: 'hls'
-          },
-          created_at: new Date(Date.now() - 43200000).toISOString(),
-          submittedBy: '0x860Ec697167Ba865DdE1eC9e172004100613e970',
-          submittedAt: new Date(Date.now() - 43200000).toISOString()
-        },
-        {
-          id: '3',
-          name: 'Pending Review Asset',
-          creator_wallet: '0x123456789abcdef123456789abcdef1234567890',
-          asset_type: 'image',
-          file_cid: 'QmTestImageCid123456789',
-          status: 'submitted',
-          quality_score: 0.72,
-          tags: ['art', 'digital'],
-          is_curated: false,
-          metadata: { 
-            upload_method: 'ipfs_direct',
-            description: 'Digital art submission',
-            format: 'png'
-          },
-          created_at: new Date(Date.now() - 21600000).toISOString(),
-          submittedBy: '0x123456789abcdef123456789abcdef1234567890',
-          submittedAt: new Date(Date.now() - 21600000).toISOString()
-        }
-      ],
-      murals: [
-        {
-          id: '1',
-          title: 'Genesis Holographic Experience',
-          artist_wallet: '0x860Ec697167Ba865DdE1eC9e172004100613e970',
-          description: 'First holographic mural in The Mighty Verse',
-          status: 'published',
-          total_duration: 120,
-          total_frames: 1920,
-          metadata: { theme: 'futuristic', complexity: 'high' },
-          created_at: new Date().toISOString()
-        }
-      ],
-      campaigns: [
-        {
-          id: '1',
-          name: 'Launch Campaign',
-          status: 'active',
-          budget: 5000,
-          created_at: new Date().toISOString()
-        }
-      ],
-      users: [
-        {
-          id: '1',
-          wallet: '0x860Ec697167Ba865DdE1eC9e172004100613e970',
-          role: 'admin',
-          created_at: new Date().toISOString()
-        },
-        {
-          id: '2',
-          wallet: '0x123456789abcdef123456789abcdef1234567890',
-          role: 'creator',
-          created_at: new Date().toISOString()
-        }
-      ],
-      processing_jobs: [
-        {
-          id: '1',
-          job_type: 'ipfs_upload',
-          content_id: '1',
-          content_type: 'asset',
-          status: 'completed',
-          progress: 100,
-          created_at: new Date().toISOString()
-        }
-      ]
-    };
-
-    // Store in localStorage for persistence (browser only)
-    Object.entries(mockData).forEach(([table, data]) => {
-      localStorage.setItem(`mighty_${table}`, JSON.stringify(data));
-    });
+    // Only create minimal fallback if no data exists
+    const existingAssets = localStorage.getItem('mighty_assets');
+    if (!existingAssets) {
+      const fallbackData = {
+        assets: [],
+        murals: [],
+        campaigns: [],
+        users: [],
+        processing_jobs: []
+      };
+      
+      Object.entries(fallbackData).forEach(([table, data]) => {
+        localStorage.setItem(`mighty_${table}`, JSON.stringify(data));
+      });
+    }
   }
 
   // Enhanced mock data getter
