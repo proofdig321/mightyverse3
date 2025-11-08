@@ -83,6 +83,7 @@ export default function MediaRenderer({
           src={thumbnailUrl || fileUrl}
           alt={fileName || 'Media asset'}
           className={className}
+          crossOrigin="anonymous"
           onLoad={() => setLoading(false)}
           onError={() => setError(true)}
         />
@@ -106,6 +107,7 @@ export default function MediaRenderer({
             <audio 
               controls 
               className="w-full"
+              crossOrigin="anonymous"
               onLoadStart={() => setLoading(false)}
               onError={() => setError(true)}
             >
@@ -134,6 +136,7 @@ export default function MediaRenderer({
             controlsList="nodownload"
             preload="metadata"
             playsInline
+            crossOrigin="anonymous"
             className={`${className} bg-black`}
             poster={thumbnailUrl || undefined}
             onLoadStart={() => setLoading(false)}
@@ -155,6 +158,7 @@ export default function MediaRenderer({
             controlsList="nodownload"
             preload="none"
             playsInline
+            crossOrigin="anonymous"
             autoPlay={fileName?.includes('.gif')}
             loop={fileName?.includes('.gif')}
             muted={fileName?.includes('.gif')}

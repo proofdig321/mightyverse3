@@ -557,6 +557,7 @@ export function HeroCanvas({ card, isPlaying, currentTime, onTimeUpdate, animato
         <div>
           <label className="block text-xs text-gray-300 mb-1">Holographic Intensity</label>
           <input
+            id="holographic-intensity"
             type="range"
             min="0"
             max="1"
