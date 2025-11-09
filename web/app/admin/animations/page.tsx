@@ -185,17 +185,28 @@ export default function AdminAnimationsPage() {
             </button>
             <button
               onClick={async () => {
+                console.log('🔄 Starting Livepeer sync...');
                 try {
+                  console.log('📡 Calling /api/livepeer/sync-all');
                   const response = await fetch('/api/livepeer/sync-all', { method: 'POST' });
+                  console.log('📡 Response status:', response.status);
+                  
+                  if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('❌ Sync API error:', response.status, errorText);
+                    alert(`Sync failed: ${response.status} ${errorText}`);
+                    return;
+                  }
+                  
                   const result = await response.json();
-                  console.log('Livepeer sync result:', result);
+                  console.log('✅ Livepeer sync result:', result);
                   alert(`Sync Complete: ${result.message}`);
                   await loadAssets();
                 } catch (error) {
-                  console.error('Sync failed:', error);
+                  console.error('❌ Sync failed:', error);
                   alert('Sync failed. Check console for details.');
                 }
-              }}
+              }
               className="px-3 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-white text-sm"
             >
               🔄 Sync Livepeer
