@@ -65,13 +65,22 @@ export default function MediaRenderer({
 
   // Livepeer-first initialization
   useEffect(() => {
+    console.log('🎬 MediaRenderer Livepeer props:', {
+      livepeerPlaybackId,
+      livepeerPlaybackUrl,
+      livepeerAssetId,
+      fileCid
+    });
+    
     // If we already have Livepeer data, use it immediately
     if (livepeerPlaybackId) {
-      console.log('Using existing Livepeer data:', livepeerPlaybackId);
+      console.log('✅ Using existing Livepeer data:', livepeerPlaybackId);
       setCurrentPlaybackId(livepeerPlaybackId);
       setCurrentPlaybackUrl(livepeerPlaybackUrl || null);
       return;
     }
+    
+    console.log('❌ No Livepeer data found, will attempt import for:', fileCid);
     
     // Only attempt import for video files without existing Livepeer data
     if (fileCid && (mimeType?.startsWith('video/') || fileName?.match(/\.(mp4|mov|webm)$/i))) {

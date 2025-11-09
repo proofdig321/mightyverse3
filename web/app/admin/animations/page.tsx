@@ -194,6 +194,7 @@ export default function AdminAnimationsPage() {
                   console.log('📡 Calling /api/livepeer/sync-all');
                   const response = await fetch('/api/livepeer/sync-all', { method: 'POST' });
                   console.log('📡 Response status:', response.status);
+                  console.log('📡 Response headers:', Object.fromEntries(response.headers.entries()));
                   
                   if (!response.ok) {
                     const errorText = await response.text();
