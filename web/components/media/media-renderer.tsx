@@ -25,7 +25,8 @@ export default function MediaRenderer({
 }: MediaRendererProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  const [livepeerPlaybackId, setLivepeerPlaybackId] = useState<string | null>(null);
+  const [currentPlaybackId, setCurrentPlaybackId] = useState<string | null>(null);
+  const [currentPlaybackUrl, setCurrentPlaybackUrl] = useState<string | null>(null);
   const [useIpfs, setUseIpfs] = useState(false);
   const [livepeerFailed, setLivepeerFailed] = useState(false);
   const [importAttempted, setImportAttempted] = useState(false);
@@ -61,16 +62,14 @@ export default function MediaRenderer({
       console.log('Skipping gateway manager - invalid fileCid:', fileCid);
     }
   }, [fileCid]);
-  
-  const [livepeerPlaybackUrl, setLivepeerPlaybackUrl] = useState<string | null>(null);
 
   // Livepeer-first initialization
   useEffect(() => {
     // If we already have Livepeer data, use it immediately
     if (livepeerPlaybackId) {
       console.log('Using existing Livepeer data:', livepeerPlaybackId);
-      setLivepeerPlaybackId(livepeerPlaybackId);
-      setLivepeerPlaybackUrl(livepeerPlaybackUrl || null);
+      setCurrentPlaybackId(livepeerPlaybackId);
+      setCurrentPlaybackUrl(livepeerPlaybackUrl || null);
       return;
     }
     
@@ -81,8 +80,8 @@ export default function MediaRenderer({
         .then(res => res.json())
         .then(data => {
           if (data.playbackId) {
-            setLivepeerPlaybackId(data.playbackId);
-            setLivepeerPlaybackUrl(data.playbackUrl || null);
+            setCurrentPlaybackId(data.playbackId);
+            setCurrentPlaybackUrl(data.playbackUrl || null);
           } else {
             // Auto-import to Livepeer (primary strategy)
             fetch(`/api/livepeer/import`, {
@@ -99,8 +98,8 @@ export default function MediaRenderer({
             })
             .then(importData => {
               if (importData.success && importData.playbackId) {
-                setLivepeerPlaybackId(importData.playbackId);
-                setLivepeerPlaybackUrl(importData.playbackUrl || null);
+                setCurrentPlaybackId(importData.playbackId);
+                setCurrentPlaybackUrl(importData.playbackUrl || null);
                 setImportAttempted(true);
               } else {
                 console.log('Livepeer import unsuccessful:', importData);
@@ -201,9 +200,9 @@ export default function MediaRenderer({
   // Video and Animation rendering (with MIME type fallback)
   const effectiveMimeType = mimeType || (fileName?.match(/\.(mp4|mov|webm)$/i) ? 'video/mp4' : undefined);
   if (effectiveMimeType?.startsWith('video/') || fileName?.match(/\.(mp4|mov|webm|gif)$/i)) {
-    const shouldUseLivepeer = livepeerPlaybackId && !livepeerFailed;
+    const shouldUseLivepeer = currentPlaybackId && !livepeerFailed;
     const videoUrl = shouldUseLivepeer
-      ? (livepeerPlaybackUrl || `https://lp-playback.com/hls/${livepeerPlaybackId}/index.m3u8`)
+      ? (currentPlaybackUrl || `https://lp-playback.com/hls/${currentPlaybackId}/index.m3u8`)
       : fileUrl;
     
     const isLivepeer = shouldUseLivepeer;
