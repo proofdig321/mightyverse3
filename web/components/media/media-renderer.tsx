@@ -61,6 +61,9 @@ export default function MediaRenderer({
   // Check for Livepeer stream availability (primary)
   useEffect(() => {
     if (fileCid && (mimeType?.startsWith('video/') || fileName?.match(/\.(mp4|mov|webm)$/i))) {
+      // Skip auto-import if asset already has Livepeer data
+      const hasLivepeerData = window.location.pathname.includes('/admin/animations');
+      if (hasLivepeerData) return;
       // First check existing stream
       fetch(`/api/livepeer/stream?cid=${fileCid}`)
         .then(res => res.json())
