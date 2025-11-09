@@ -122,12 +122,23 @@ export default function Animations() {
               <div className="mb-4">
                 <h2 className="mv-heading-lg mb-2">{selectedAsset.name}</h2>
                 <div className="flex flex-wrap gap-4 text-sm mv-text-muted mb-4">
-                  <span>Type: {selectedAsset.type}</span>
+                  <span className={`px-2 py-1 rounded ${
+                    selectedAsset.asset_type === 'holographic' ? 'bg-purple-500/20 text-purple-400' :
+                    selectedAsset.asset_type === 'video' ? 'bg-blue-500/20 text-blue-400' :
+                    'bg-gray-500/20 text-gray-400'
+                  }`}>
+                    {selectedAsset.asset_type === 'holographic' ? '2.5D Holographic' : 
+                     selectedAsset.asset_type || selectedAsset.type}
+                  </span>
                   {selectedAsset.metadata?.duration && (
                     <span>Duration: {Math.floor(selectedAsset.metadata.duration / 60)}:{(selectedAsset.metadata.duration % 60).toString().padStart(2, '0')}</span>
                   )}
                   {selectedAsset.creator && <span>Creator: {selectedAsset.creator.slice(0, 8)}...</span>}
                   {selectedAsset.metadata?.isrc && <span>ISRC: {selectedAsset.metadata.isrc}</span>}
+                  {selectedAsset.livepeer_playback_id && <span className="text-green-400">Livepeer: {selectedAsset.livepeer_playback_id.slice(0, 8)}...</span>}
+                  {selectedAsset.asset_type === 'holographic' && selectedAsset.metadata?.layers && (
+                    <span className="text-purple-400">Layers: {Object.keys(selectedAsset.metadata.layers).length}</span>
+                  )}
                 </div>
               </div>
               
@@ -136,12 +147,17 @@ export default function Animations() {
                 <HeroCanvas
                   playbackId={selectedAsset.livepeer_playback_id}
                   ipfsCid={selectedAsset.fileCid || selectedAsset.file_cid}
-                  card={(selectedAsset.metadata as any)?.layers ? {
+                  card={(selectedAsset.asset_type === 'holographic' && selectedAsset.metadata?.layers) ? {
                     id: selectedAsset.id,
                     title: selectedAsset.name,
-                    layers: (selectedAsset.metadata as any).layers
+                    layers: {
+                      background: selectedAsset.metadata.layers.background || '',
+                      midground: selectedAsset.metadata.layers.midground || '',
+                      foreground: selectedAsset.metadata.layers.foreground || '',
+                      depthMapCid: selectedAsset.metadata.layers.depthMapCid
+                    }
                   } : undefined}
-                  isPlaying={false}
+                  isPlaying={true}
                   currentTime={0}
                   onTimeUpdate={() => {}}
                   animatorVersion="enhanced"

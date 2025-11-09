@@ -50,7 +50,13 @@ async function uploadToLivepeer(file: File, name: string, thumbnail: File | null
     throw new Error(`Upload request failed: ${response.status} - ${errorText}`);
   }
   
-  const { assetId, tusEndpoint } = await response.json();
+  const { success, assetId, tusEndpoint } = await response.json();
+  
+  if (!success || !tusEndpoint) {
+    throw new Error('Failed to get TUS endpoint from Livepeer');
+  }
+  
+  console.log('TUS endpoint received:', tusEndpoint);
   
   // Step 2: Upload using TUS
   return new Promise((resolve, reject) => {
@@ -67,10 +73,12 @@ async function uploadToLivepeer(file: File, name: string, thumbnail: File | null
       },
       onProgress: (bytesUploaded, bytesTotal) => {
         const progress = Math.round((bytesUploaded / bytesTotal) * 100);
+        console.log(`Upload progress: ${progress}%`);
         if (onProgress) onProgress(progress);
       },
       onSuccess: async () => {
         try {
+          console.log('TUS upload completed, creating database record...');
           // Step 3: Create database record
           await fetch('/api/assets', {
             method: 'POST',
@@ -793,7 +801,10 @@ export default function AdminUploadPage() {
         {uploading && (
           <div>
             <div className="flex justify-between items-center mb-2">
-              <span className="text-sm font-medium">Uploading to IPFS...</span>
+              <span className="text-sm font-medium">
+                {form.type === 'video' || form.type === 'audio' ? 'Uploading to Livepeer...' : 
+                 form.type === 'holographic' ? 'Uploading holographic layers...' : 'Uploading to IPFS...'}
+              </span>
               <span className="text-sm mv-text-muted">{uploadProgress}%</span>
             </div>
             <div className="w-full bg-white/10 rounded-full h-2">
@@ -802,6 +813,11 @@ export default function AdminUploadPage() {
                 style={{ width: `${uploadProgress}%` }}
               />
             </div>
+            {form.type === 'video' || form.type === 'audio' ? (
+              <div className="text-xs text-blue-400 mt-1">
+                Using TUS protocol for reliable upload to Livepeer
+              </div>
+            ) : null}
           </div>
         )}
 
