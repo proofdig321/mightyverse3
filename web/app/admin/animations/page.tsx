@@ -183,6 +183,23 @@ export default function AdminAnimationsPage() {
             </button>
             <button
               onClick={async () => {
+                try {
+                  const response = await fetch('/api/livepeer/sync-all', { method: 'POST' });
+                  const result = await response.json();
+                  console.log('Livepeer sync result:', result);
+                  alert(`Sync Complete: ${result.message}`);
+                  await loadAssets();
+                } catch (error) {
+                  console.error('Sync failed:', error);
+                  alert('Sync failed. Check console for details.');
+                }
+              }}
+              className="px-3 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-white text-sm"
+            >
+              🔄 Sync Livepeer
+            </button>
+            <button
+              onClick={async () => {
                 if (confirm('⚠️ OPTION B: COMPLETE RESET\n\nThis will DELETE ALL ASSETS from database.\n\nBefore clicking OK:\n1. Delete all files from Pinata dashboard\n2. Delete all assets from Livepeer dashboard\n3. Then click OK for database cleanup\n\nProceed with complete reset?')) {
                   try {
                     const response = await fetch('/api/admin/cleanup', { method: 'POST' });
