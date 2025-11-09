@@ -237,7 +237,7 @@ export default function MediaRenderer({
               console.log('Livepeer failed, falling back to IPFS');
               setLivepeerFailed(true);
             }}
-            style={{ objectFit: 'contain' }}
+            style={{ width: '100%', height: '100%' }}
           >
             <source src={videoUrl} type={videoUrl.includes('.m3u8') ? 'application/x-mpegURL' : 'video/mp4'} />
             <track kind="captions" />
@@ -264,7 +264,7 @@ export default function MediaRenderer({
               setErrorMessage('Video playback failed, trying alternative source');
               // Don't set error=true immediately, let IPFS fallback work
             }}
-            style={{ objectFit: 'contain' }}
+            style={{ width: '100%', height: '100%' }}
           >
             <source src={fileUrl} type={effectiveMimeType || 'video/mp4'} />
             Your browser does not support video playback.
