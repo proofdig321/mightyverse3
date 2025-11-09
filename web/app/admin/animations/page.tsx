@@ -235,6 +235,28 @@ export default function AdminAnimationsPage() {
               🔧 Reconcile Assets
             </button>
             <button
+              onClick={() => {
+                const coverImageUrl = prompt('Enter professional cover image URL (IPFS or HTTPS):');
+                const assetId = prompt('Enter Livepeer Asset ID:');
+                if (coverImageUrl && assetId) {
+                  fetch('/api/assets/cover-image', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ assetId, coverImageUrl })
+                  })
+                  .then(res => res.json())
+                  .then(result => {
+                    alert(result.success ? 'Cover image updated!' : `Error: ${result.error}`);
+                    if (result.success) loadAssets();
+                  })
+                  .catch(err => alert('Failed to update cover image'));
+                }
+              }}
+              className="px-3 py-2 bg-pink-600 hover:bg-pink-700 rounded-lg text-white text-sm"
+            >
+              🎨 Add Cover Image
+            </button>
+            <button
               onClick={async () => {
                 if (confirm('⚠️ OPTION B: COMPLETE RESET\n\nThis will DELETE ALL ASSETS from database.\n\nBefore clicking OK:\n1. Delete all files from Pinata dashboard\n2. Delete all assets from Livepeer dashboard\n3. Then click OK for database cleanup\n\nProceed with complete reset?')) {
                   try {
