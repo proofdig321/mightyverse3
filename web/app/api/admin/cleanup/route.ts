@@ -3,12 +3,11 @@ import { supabaseServer } from '../../../../utils/supabase/server';
 
 export async function POST() {
   try {
-    // Delete the problematic "Test 2" asset with wrong CID
-    const { data: deletedAsset, error: deleteError } = await supabaseServer
+    // OPTION B: Complete database reset - delete ALL assets
+    const { data: deletedAssets, error: deleteError } = await supabaseServer
       .from('assets')
       .delete()
-      .eq('id', '7456590f-39d3-4f8c-b1e6-3eaa9caec9bc')
-      .eq('name', 'Test 2')
+      .neq('id', '00000000-0000-0000-0000-000000000000') // Delete all
       .select();
 
     if (deleteError) {
@@ -19,28 +18,42 @@ export async function POST() {
       }, { status: 500 });
     }
 
-    // Verify remaining assets
+    // Also clean related tables
+    const tables = ['asset_streams', 'processing_jobs'];
+    const cleanupResults = [];
+    
+    for (const table of tables) {
+      try {
+        const { data, error } = await supabaseServer
+          .from(table)
+          .delete()
+          .neq('id', '00000000-0000-0000-0000-000000000000')
+          .select();
+        
+        cleanupResults.push({ table, deleted: data?.length || 0, error: error?.message });
+      } catch (err) {
+        cleanupResults.push({ table, deleted: 0, error: 'Table not found or accessible' });
+      }
+    }
+
+    // Verify complete cleanup
     const { data: remainingAssets, error: selectError } = await supabaseServer
       .from('assets')
-      .select('id, name, file_cid, mime_type, asset_type')
-      .or('asset_type.eq.video,mime_type.like.video/%')
-      .order('created_at', { ascending: false });
-
-    if (selectError) {
-      console.error('Select error:', selectError);
-    }
+      .select('id, name, file_cid')
+      .limit(10);
 
     return NextResponse.json({
       success: true,
-      deleted: deletedAsset,
-      remaining: remainingAssets,
-      message: 'Database cleanup completed'
+      deleted: deletedAssets?.length || 0,
+      cleanupResults,
+      remaining: remainingAssets?.length || 0,
+      message: 'COMPLETE DATABASE RESET - All assets deleted. Ready for fresh start.'
     });
   } catch (error) {
-    console.error('Cleanup error:', error);
+    console.error('Complete cleanup error:', error);
     return NextResponse.json({
       success: false,
-      error: error instanceof Error ? error.message : 'Cleanup failed'
+      error: error instanceof Error ? error.message : 'Complete cleanup failed'
     }, { status: 500 });
   }
 }

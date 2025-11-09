@@ -183,20 +183,22 @@ export default function AdminAnimationsPage() {
             </button>
             <button
               onClick={async () => {
-                if (confirm('Remove contaminated assets? This will delete assets with wrong CIDs.')) {
+                if (confirm('⚠️ OPTION B: COMPLETE RESET\n\nThis will DELETE ALL ASSETS from database.\n\nBefore clicking OK:\n1. Delete all files from Pinata dashboard\n2. Delete all assets from Livepeer dashboard\n3. Then click OK for database cleanup\n\nProceed with complete reset?')) {
                   try {
                     const response = await fetch('/api/admin/cleanup', { method: 'POST' });
                     const result = await response.json();
-                    console.log('Cleanup result:', result);
+                    console.log('Complete reset result:', result);
+                    alert(`Complete Reset: ${result.message}\nDeleted: ${result.deleted} assets`);
                     await loadAssets();
                   } catch (error) {
-                    console.error('Cleanup failed:', error);
+                    console.error('Complete reset failed:', error);
+                    alert('Complete reset failed. Check console for details.');
                   }
                 }
               }}
-              className="px-3 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-white text-sm"
+              className="px-3 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-white text-sm font-bold"
             >
-              🗑️ Clean DB
+              ⚠️ RESET ALL
             </button>
           </div>
         </div>
