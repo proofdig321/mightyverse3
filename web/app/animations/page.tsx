@@ -22,6 +22,9 @@ interface Asset {
   file_name?: string;
   mimeType?: string;
   mime_type?: string;
+  livepeer_asset_id?: string;
+  livepeer_playback_id?: string;
+  livepeer_status?: string;
   metadata?: {
     duration?: number;
     renditions?: Array<{
@@ -32,9 +35,6 @@ interface Asset {
       label?: string;
     }>;
     isrc?: string;
-    livepeer_playback_url?: string;
-    livepeer_playback_id?: string;
-    livepeer_thumbnail_url?: string;
     upload_method?: string;
   };
   creator?: string;
@@ -127,7 +127,7 @@ export default function Animations() {
               {/* Enhanced Holographic Video Player */}
               <div className="w-full aspect-video max-w-4xl mx-auto">
                 <HeroCanvas
-                  playbackId={selectedAsset.metadata?.livepeer_playback_id}
+                  playbackId={selectedAsset.livepeer_playback_id}
                   ipfsCid={selectedAsset.fileCid || selectedAsset.file_cid}
                   isPlaying={false}
                   currentTime={0}
@@ -164,21 +164,15 @@ export default function Animations() {
                 >
                   {/* Thumbnail */}
                   <div className="aspect-video mb-4">
-                    {asset.metadata?.livepeer_thumbnail_url ? (
-                      <img
-                        src={asset.metadata.livepeer_thumbnail_url}
-                        alt={asset.name}
-                        className="w-full h-full object-cover rounded-lg"
-                      />
-                    ) : (
-                      <MediaRenderer
-                        fileCid={asset.fileCid || asset.file_cid}
-                        thumbnailCid={asset.thumbnailCid || asset.thumbnail_cid}
-                        mimeType={asset.mimeType || asset.mime_type}
-                        fileName={asset.fileName || asset.file_name}
-                        className="w-full h-full object-cover rounded-lg"
-                      />
-                    )}
+                    <MediaRenderer
+                      fileCid={asset.fileCid || asset.file_cid}
+                      thumbnailCid={asset.thumbnailCid || asset.thumbnail_cid}
+                      mimeType={asset.mimeType || asset.mime_type}
+                      fileName={asset.fileName || asset.file_name}
+                      livepeerPlaybackId={asset.livepeer_playback_id}
+                      livepeerAssetId={asset.livepeer_asset_id}
+                      className="w-full h-full object-cover rounded-lg"
+                    />
                   </div>
                   
                   {/* Info */}
