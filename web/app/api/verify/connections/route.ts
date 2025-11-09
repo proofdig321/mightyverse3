@@ -2,9 +2,9 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
 export async function GET() {
-  const results = {
+  const results: any = {
     timestamp: new Date().toISOString(),
-    services: {} as any
+    services: {}
   };
 
   // 1. Supabase Connection
