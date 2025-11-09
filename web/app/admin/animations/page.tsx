@@ -181,6 +181,23 @@ export default function AdminAnimationsPage() {
             >
               {recovering ? '🔄 Recovering...' : '🔧 Fix Data'}
             </button>
+            <button
+              onClick={async () => {
+                if (confirm('Remove contaminated assets? This will delete assets with wrong CIDs.')) {
+                  try {
+                    const response = await fetch('/api/admin/cleanup', { method: 'POST' });
+                    const result = await response.json();
+                    console.log('Cleanup result:', result);
+                    await loadAssets();
+                  } catch (error) {
+                    console.error('Cleanup failed:', error);
+                  }
+                }
+              }}
+              className="px-3 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-white text-sm"
+            >
+              🗑️ Clean DB
+            </button>
           </div>
         </div>
       </div>

@@ -18,50 +18,77 @@ export interface LivepeerUploadRequest {
 }
 
 export async function importFromIPFS(cid: string, name?: string): Promise<LivepeerAsset> {
-  const gatewayUrl = `https://gateway.pinata.cloud/ipfs/${cid}`;
+  // Try multiple gateway URLs for better success rate
+  const gatewayUrls = [
+    `https://ipfs.io/ipfs/${cid}`,
+    `https://gateway.pinata.cloud/ipfs/${cid}`,
+    `https://cloudflare-ipfs.com/ipfs/${cid}`
+  ];
   
   if (!process.env.LIVEPEER_API_KEY) {
     throw new Error('LIVEPEER_API_KEY not configured');
   }
   
-  console.log('Importing to Livepeer:', { cid, name, gatewayUrl });
-  
-  const response = await fetch('https://livepeer.studio/api/asset/import', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${process.env.LIVEPEER_API_KEY}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      name: name || `asset-${cid.slice(0, 8)}`,
-      url: gatewayUrl
-    })
+  // Test API key validity first
+  console.log('Testing Livepeer API key...');
+  const testResponse = await fetch('https://livepeer.studio/api/asset', {
+    headers: { 'Authorization': `Bearer ${process.env.LIVEPEER_API_KEY}` }
   });
+  
+  if (!testResponse.ok) {
+    console.error('Livepeer API key test failed:', testResponse.status, testResponse.statusText);
+    throw new Error(`Livepeer API authentication failed: ${testResponse.status}`);
+  }
+  
+  // Try each gateway URL
+  for (const gatewayUrl of gatewayUrls) {
+    try {
+      console.log('Importing to Livepeer:', { cid, name, gatewayUrl });
+      
+      const response = await fetch('https://livepeer.studio/api/asset/import', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.LIVEPEER_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name: name || `asset-${cid.slice(0, 8)}`,
+          url: gatewayUrl
+        })
+      });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('Livepeer API Error:', {
-      status: response.status,
-      statusText: response.statusText,
-      body: errorText,
-      url: gatewayUrl
-    });
-    throw new Error(`Livepeer import failed: ${response.status} ${errorText}`);
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Livepeer import successful:', data);
+        
+        if (!data.asset) {
+          throw new Error('Invalid Livepeer response: missing asset data');
+        }
+        
+        return {
+          assetId: data.asset.id,
+          playbackId: data.asset.playbackId,
+          playbackUrl: `https://lp-playback.com/hls/${data.asset.playbackId}/index.m3u8`,
+          status: data.asset.status?.phase || 'processing'
+        };
+      } else {
+        const errorText = await response.text();
+        console.warn(`Gateway ${gatewayUrl} failed:`, response.status, errorText);
+        
+        // Don't throw on first failures, try next gateway
+        if (gatewayUrl === gatewayUrls[gatewayUrls.length - 1]) {
+          throw new Error(`All gateways failed. Last error: ${response.status} ${errorText}`);
+        }
+      }
+    } catch (error) {
+      console.error(`Gateway ${gatewayUrl} error:`, error);
+      if (gatewayUrl === gatewayUrls[gatewayUrls.length - 1]) {
+        throw error;
+      }
+    }
   }
   
-  const data = await response.json();
-  console.log('Livepeer response:', data);
-  
-  if (!data.asset) {
-    throw new Error('Invalid Livepeer response: missing asset data');
-  }
-  
-  return {
-    assetId: data.asset.id,
-    playbackId: data.asset.playbackId,
-    playbackUrl: `https://lp-playback.com/hls/${data.asset.playbackId}/index.m3u8`,
-    status: data.asset.status?.phase || 'processing'
-  };
+  throw new Error('All import attempts failed');
 }
 
 export async function requestLivepeerUpload(request: LivepeerUploadRequest): Promise<{ uploadUrl: string; assetId: string }> {
