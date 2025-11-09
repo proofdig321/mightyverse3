@@ -29,15 +29,24 @@ export async function POST(request: NextRequest) {
       throw new Error('Failed to create asset upload request');
     }
 
-    // Type assertion for the response structure
+    console.log('Livepeer response:', JSON.stringify(response, null, 2));
+
+    // Handle different response structures
     const uploadResponse = response as any;
+    const asset = uploadResponse.asset || uploadResponse;
+    const tusEndpoint = uploadResponse.tusEndpoint || uploadResponse.tus_endpoint || asset.tusEndpoint;
+
+    if (!tusEndpoint) {
+      console.error('No TUS endpoint in response:', uploadResponse);
+      throw new Error('TUS endpoint not provided by Livepeer');
+    }
 
     return NextResponse.json({
       success: true,
-      assetId: uploadResponse.asset?.id,
-      tusEndpoint: uploadResponse.tusEndpoint,
-      playbackId: uploadResponse.asset?.playbackId,
-      status: uploadResponse.asset?.status?.phase || 'created'
+      assetId: asset?.id,
+      tusEndpoint: tusEndpoint,
+      playbackId: asset?.playbackId,
+      status: asset?.status?.phase || 'created'
     });
 
   } catch (error) {
