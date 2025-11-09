@@ -48,7 +48,8 @@ export async function GET() {
         status: 'approved',
         livepeer_asset_id: asset.id,
         livepeer_playback_id: asset.playbackId,
-        mime_type: 'video/mp4'
+        mime_type: 'video/mp4',
+        file_name: asset.name
       })
       .select();
 

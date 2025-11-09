@@ -71,6 +71,7 @@ export async function POST() {
             livepeer_playback_url: asset.playbackUrl,
             livepeer_status: asset.status?.phase || 'unknown',
             mime_type: 'video/mp4',
+            file_name: asset.name,
             metadata: {
               source: 'livepeer_dashboard',
               duration: asset.videoSpec?.duration,
