@@ -28,45 +28,49 @@ interface UploadForm {
   };
 }
 
-// Direct Livepeer upload function (same pattern as IPFS directPinataUpload)
-async function directLivepeerUpload(file: File, name: string, thumbnail: File | null, metadata: any, onProgress?: (progress: number) => void): Promise<any> {
-  // Use client-side API key (same as IPFS pattern)
-  const LIVEPEER_API_KEY = process.env.NEXT_PUBLIC_LIVEPEER_API_KEY || '99764289-df40-4cba-ab77-3105df4bf7a9';
+// TUS-based Livepeer upload using proper SDK
+async function uploadToLivepeer(file: File, name: string, thumbnail: File | null, metadata: any, onProgress?: (progress: number) => void): Promise<any> {
+  const { Upload } = await import('tus-js-client');
   
-  // Step 1: Request upload URL via proxy (avoids CORS)
-  const uploadResponse = await fetch('/api/livepeer/proxy-upload', {
+  // Step 1: Request TUS endpoint
+  const response = await fetch('/api/livepeer/tus-upload', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: name })
+    body: JSON.stringify({ name, enableIPFS: true })
   });
   
-  if (!uploadResponse.ok) {
-    const errorText = await uploadResponse.text();
-    throw new Error(`Upload request failed: ${uploadResponse.status} - ${errorText}`);
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Upload request failed: ${response.status} - ${errorText}`);
   }
   
-  const uploadData = await uploadResponse.json();
+  const { assetId, tusEndpoint } = await response.json();
   
-  // Step 2: Upload file using XMLHttpRequest (same as IPFS pattern)
+  // Step 2: Upload using TUS
   return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    
-    xhr.upload.addEventListener('progress', (e) => {
-      if (e.lengthComputable && onProgress) {
-        const progress = Math.round((e.loaded / e.total) * 100);
-        onProgress(progress);
-      }
-    });
-
-    xhr.addEventListener('load', async () => {
-      if (xhr.status === 200 || xhr.status === 201) {
+    const upload = new Upload(file, {
+      endpoint: tusEndpoint,
+      retryDelays: [0, 3000, 5000, 10000],
+      metadata: {
+        filename: file.name,
+        filetype: file.type,
+      },
+      onError: (error) => {
+        console.error('TUS upload failed:', error);
+        reject(error);
+      },
+      onProgress: (bytesUploaded, bytesTotal) => {
+        const progress = Math.round((bytesUploaded / bytesTotal) * 100);
+        if (onProgress) onProgress(progress);
+      },
+      onSuccess: async () => {
         try {
           // Step 3: Create database record
-          const dbResponse = await fetch('/api/assets', {
+          await fetch('/api/assets', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              name: name,
+              name,
               creator_wallet: metadata.creatorWallet,
               asset_type: metadata.assetType,
               file_name: file.name,
@@ -75,13 +79,13 @@ async function directLivepeerUpload(file: File, name: string, thumbnail: File | 
               category: metadata.category,
               tags: metadata.tags,
               status: 'approved',
-              livepeer_asset_id: uploadData.asset.id,
+              livepeer_asset_id: assetId,
               livepeer_status: 'processing',
               export_status: 'pending',
               metadata: {
                 ...metadata.metadata,
                 description: metadata.description,
-                upload_method: 'livepeer_direct',
+                upload_method: 'livepeer_tus',
                 original_filename: file.name
               }
             })
@@ -89,36 +93,21 @@ async function directLivepeerUpload(file: File, name: string, thumbnail: File | 
           
           resolve({
             success: true,
-            livepeerAssetId: uploadData.asset.id,
-            message: 'Direct upload successful'
+            assetId,
+            message: 'TUS upload successful'
           });
         } catch (dbError) {
-          console.warn('Database record creation failed, but Livepeer upload succeeded');
+          console.warn('Database record creation failed, but upload succeeded');
           resolve({
             success: true,
-            livepeerAssetId: uploadData.asset.id,
+            assetId,
             message: 'Upload successful, database update failed'
           });
         }
-      } else {
-        reject(new Error(`File upload failed: ${xhr.statusText}`));
-      }
+      },
     });
-
-    xhr.addEventListener('error', () => {
-      reject(new Error('Direct Livepeer upload failed'));
-    });
-
-    // Use TUS resumable endpoint if available (more reliable)
-    const uploadUrl = uploadData.tusEndpoint || uploadData.url;
-    const method = uploadData.tusEndpoint ? 'POST' : 'PUT';
     
-    xhr.open(method, uploadUrl);
-    if (uploadData.tusEndpoint) {
-      xhr.setRequestHeader('Tus-Resumable', '1.0.0');
-      xhr.setRequestHeader('Upload-Length', file.size.toString());
-    }
-    xhr.send(file);
+    upload.start();
   });
 }
 
@@ -264,81 +253,34 @@ export default function AdminUploadPage() {
       let fileCid: string;
       let uploadMethod = 'ipfs';
 
-      // Try Livepeer-first for video/audio, fallback to IPFS
+      // Use Livepeer for video/audio, IPFS for other types
       if (form.type === 'video' || form.type === 'audio') {
-        try {
-          console.log('Attempting Livepeer direct upload...', {
-            fileName: form.file.name,
-            fileSize: `${(form.file.size / 1024 / 1024).toFixed(1)} MB`,
-            fileType: form.file.type
-          });
-          
-          // For large files (>4MB), use direct Livepeer upload to bypass Vercel limits
-          const useDirect = form.file.size > 4 * 1024 * 1024;
-          
-          if (useDirect) {
-            console.log('Using direct Livepeer upload for large file (IPFS pattern)');
-            const result = await directLivepeerUpload(
-              form.file, 
-              form.name, 
-              form.thumbnail, 
-              {
-                assetType: form.type,
-                creatorWallet: wallet || '',
-                category: form.category,
-                description: form.description,
-                tags: form.tags,
-                metadata: form.metadata
-              },
-              (progress) => setUploadProgress(progress)
-            );
-            
-            console.log('Direct Livepeer upload successful:', result);
-            setUploadProgress(100);
-            setUploadedAsset({ name: form.name, type: form.type });
-            setUploadSuccess(true);
-            return;
-          } else {
-            // Use server route for smaller files
-            const livepeerFormData = new FormData();
-            livepeerFormData.append('file', form.file);
-            if (form.thumbnail) {
-              livepeerFormData.append('thumbnail', form.thumbnail);
-            }
-            livepeerFormData.append('name', form.name);
-            livepeerFormData.append('assetType', form.type);
-            livepeerFormData.append('creatorWallet', wallet || '');
-            livepeerFormData.append('category', form.category);
-            livepeerFormData.append('description', form.description);
-            livepeerFormData.append('tags', JSON.stringify(form.tags));
-            livepeerFormData.append('metadata', JSON.stringify(form.metadata));
-
-            const livepeerResponse = await fetch('/api/livepeer/upload', {
-              method: 'POST',
-              body: livepeerFormData
-            });
-
-            if (livepeerResponse.ok) {
-              const result = await livepeerResponse.json();
-              console.log('Livepeer upload successful:', result);
-              setUploadProgress(100);
-              setUploadedAsset({ name: form.name, type: form.type });
-              setUploadSuccess(true);
-              return; // Exit early on success
-            } else {
-              const errorText = await livepeerResponse.text();
-              throw new Error(`Livepeer upload failed: ${livepeerResponse.status} - ${errorText}`);
-            }
-          }
-        } catch (livepeerError) {
-          console.error('🚨 LIVEPEER FAILURE DETAILS:', {
-            error: livepeerError,
-            fileName: form.file?.name,
-            fileType: form.file?.type,
-            fileSize: form.file?.size
-          });
-          console.warn('Falling back to IPFS due to Livepeer error:', livepeerError);
-        }
+        console.log('Uploading to Livepeer via TUS...', {
+          fileName: form.file.name,
+          fileSize: `${(form.file.size / 1024 / 1024).toFixed(1)} MB`,
+          fileType: form.file.type
+        });
+        
+        const result = await uploadToLivepeer(
+          form.file, 
+          form.name, 
+          form.thumbnail, 
+          {
+            assetType: form.type,
+            creatorWallet: wallet || '',
+            category: form.category,
+            description: form.description,
+            tags: form.tags,
+            metadata: form.metadata
+          },
+          (progress) => setUploadProgress(progress)
+        );
+        
+        console.log('Livepeer upload successful:', result);
+        setUploadProgress(100);
+        setUploadedAsset({ name: form.name, type: form.type });
+        setUploadSuccess(true);
+        return;
       }
 
       // Fallback to existing IPFS flow

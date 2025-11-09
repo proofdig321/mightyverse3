@@ -181,99 +181,25 @@ export default function AdminAnimationsPage() {
               <option value="rejected">Rejected</option>
             </select>
             <button
-              onClick={handleDataRecovery}
-              disabled={recovering}
-              className="px-3 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 rounded-lg text-white text-sm"
-            >
-              {recovering ? '🔄 Recovering...' : '🔧 Fix Data'}
-            </button>
-            <button
               onClick={async () => {
-                console.log('🔄 Starting Livepeer sync...');
                 try {
-                  console.log('📡 Calling /api/livepeer/sync-all');
                   const response = await fetch('/api/livepeer/sync-all', { method: 'POST' });
-                  console.log('📡 Response status:', response.status);
-                  console.log('📡 Response headers:', Object.fromEntries(response.headers.entries()));
-                  
                   if (!response.ok) {
                     const errorText = await response.text();
-                    console.error('❌ Sync API error:', response.status, errorText);
                     alert(`Sync failed: ${response.status} ${errorText}`);
                     return;
                   }
-                  
                   const result = await response.json();
-                  console.log('✅ Livepeer sync result:', result);
                   alert(`Sync Complete: ${result.message}`);
                   await loadAssets();
                 } catch (error) {
-                  console.error('❌ Sync failed:', error);
+                  console.error('Sync failed:', error);
                   alert('Sync failed. Check console for details.');
                 }
               }}
               className="px-3 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-white text-sm"
             >
-              🔄 Sync Livepeer
-            </button>
-            <button
-              onClick={async () => {
-                console.log('🔧 Starting asset reconciliation...');
-                try {
-                  const response = await fetch('/api/assets/reconcile', { method: 'POST' });
-                  const result = await response.json();
-                  console.log('✅ Reconciliation result:', result);
-                  alert(`Reconciliation Complete: ${result.message}`);
-                  await loadAssets();
-                } catch (error) {
-                  console.error('❌ Reconciliation failed:', error);
-                  alert('Reconciliation failed. Check console for details.');
-                }
-              }}
-              className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 rounded-lg text-white text-sm"
-            >
-              🔧 Reconcile Assets
-            </button>
-            <button
-              onClick={() => {
-                const coverImageUrl = prompt('Enter professional cover image URL (IPFS or HTTPS):');
-                const assetId = prompt('Enter Livepeer Asset ID:');
-                if (coverImageUrl && assetId) {
-                  fetch('/api/assets/cover-image', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ assetId, coverImageUrl })
-                  })
-                  .then(res => res.json())
-                  .then(result => {
-                    alert(result.success ? 'Cover image updated!' : `Error: ${result.error}`);
-                    if (result.success) loadAssets();
-                  })
-                  .catch(err => alert('Failed to update cover image'));
-                }
-              }}
-              className="px-3 py-2 bg-pink-600 hover:bg-pink-700 rounded-lg text-white text-sm"
-            >
-              🎨 Add Cover Image
-            </button>
-            <button
-              onClick={async () => {
-                if (confirm('⚠️ OPTION B: COMPLETE RESET\n\nThis will DELETE ALL ASSETS from database.\n\nBefore clicking OK:\n1. Delete all files from Pinata dashboard\n2. Delete all assets from Livepeer dashboard\n3. Then click OK for database cleanup\n\nProceed with complete reset?')) {
-                  try {
-                    const response = await fetch('/api/admin/cleanup', { method: 'POST' });
-                    const result = await response.json();
-                    console.log('Complete reset result:', result);
-                    alert(`Complete Reset: ${result.message}\nDeleted: ${result.deleted} assets`);
-                    await loadAssets();
-                  } catch (error) {
-                    console.error('Complete reset failed:', error);
-                    alert('Complete reset failed. Check console for details.');
-                  }
-                }
-              }}
-              className="px-3 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-white text-sm font-bold"
-            >
-              ⚠️ RESET ALL
+              🔄 Sync Dashboard
             </button>
           </div>
         </div>

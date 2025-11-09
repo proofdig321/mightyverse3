@@ -10,7 +10,7 @@ import UploadSuccess from '../../../components/shared/upload-success';
 interface UploadForm {
   name: string;
   description: string;
-  type: 'animation' | '3d-model' | 'audio' | 'texture';
+  type: 'animation' | '3d-model' | 'audio' | 'video' | 'texture';
   category: string;
   tags: string[];
   file: File | null;
@@ -47,6 +47,7 @@ export default function UploadPage() {
     animation: ['Character Animation', 'Environment', 'Effects', 'UI Animation'],
     '3d-model': ['Characters', 'Props', 'Environments', 'Vehicles'],
     audio: ['Music', 'Sound Effects', 'Voice', 'Ambient'],
+    video: ['Animation', 'Live Action', 'Tutorial', 'Promotional'],
     texture: ['Materials', 'Patterns', 'Overlays', 'Backgrounds']
   };
 
@@ -75,52 +76,103 @@ export default function UploadPage() {
     setUploadProgress(0);
 
     try {
-      // Upload actual file to IPFS
-      setUploadProgress(10);
-      const fileCid = await ipfsClient.pinFile(
-        form.file,
-        `${form.name}-${Date.now()}`,
-        (progress) => setUploadProgress(Math.round(progress * 0.6))
-      );
-      
-      setUploadProgress(70);
-      
-      // Upload thumbnail if provided
-      let thumbnailCid;
-      if (form.thumbnail) {
-        thumbnailCid = await ipfsClient.pinFile(
-          form.thumbnail,
-          `${form.name}-thumb-${Date.now()}`,
-          (progress) => setUploadProgress(70 + Math.round(progress * 0.2))
+      // Use Livepeer for video/audio, IPFS for other types
+      if (form.type === 'audio' || form.type === 'video') {
+        // TUS upload to Livepeer for audio
+        const { Upload } = await import('tus-js-client');
+        
+        const response = await fetch('/api/livepeer/tus-upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: form.name, enableIPFS: true })
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to create upload request');
+        }
+        
+        const { assetId, tusEndpoint } = await response.json();
+        
+        await new Promise((resolve, reject) => {
+          const upload = new Upload(form.file!, {
+            endpoint: tusEndpoint,
+            retryDelays: [0, 3000, 5000],
+            metadata: {
+              filename: form.file!.name,
+              filetype: form.file!.type,
+            },
+            onError: reject,
+            onProgress: (bytesUploaded, bytesTotal) => {
+              const progress = Math.round((bytesUploaded / bytesTotal) * 90);
+              setUploadProgress(progress);
+            },
+            onSuccess: resolve,
+          });
+          upload.start();
+        });
+        
+        // Create database record
+        await dataManager.addItem('assets', {
+          name: form.name,
+          description: form.description,
+          type: form.type,
+          category: form.category,
+          tags: form.tags,
+          fileName: form.file.name,
+          fileSize: form.file.size,
+          mimeType: form.file.type,
+          metadata: form.metadata,
+          status: 'pending',
+          creator: wallet,
+          submittedBy: wallet,
+          submittedAt: new Date().toISOString(),
+          livepeer_asset_id: assetId,
+          livepeer_status: 'processing'
+        });
+      } else {
+        // IPFS upload for other types
+        const fileCid = await ipfsClient.pinFile(
+          form.file,
+          `${form.name}-${Date.now()}`,
+          (progress) => setUploadProgress(Math.round(progress * 0.6))
         );
+        
+        setUploadProgress(70);
+        
+        let thumbnailCid;
+        if (form.thumbnail) {
+          thumbnailCid = await ipfsClient.pinFile(
+            form.thumbnail,
+            `${form.name}-thumb-${Date.now()}`,
+            (progress) => setUploadProgress(70 + Math.round(progress * 0.2))
+          );
+        }
+        
+        await dataManager.addItem('assets', {
+          name: form.name,
+          description: form.description,
+          type: form.type,
+          category: form.category,
+          tags: form.tags,
+          fileCid,
+          thumbnailCid,
+          fileName: form.file.name,
+          fileSize: form.file.size,
+          mimeType: form.file.type,
+          metadata: form.metadata,
+          status: 'pending',
+          creator: wallet,
+          submittedBy: wallet,
+          submittedAt: new Date().toISOString()
+        });
       }
-      
-      setUploadProgress(90);
-      
-      // Create asset record with enhanced metadata
-      await dataManager.addItem('assets', {
-        name: form.name,
-        description: form.description,
-        type: form.type,
-        category: form.category,
-        tags: form.tags,
-        fileCid,
-        thumbnailCid,
-        fileName: form.file.name,
-        fileSize: form.file.size,
-        mimeType: form.file.type,
-        metadata: form.metadata,
-        status: 'pending', // Animator uploads need approval
-        creator: wallet,
-        submittedBy: wallet,
-        submittedAt: new Date().toISOString()
-      });
       
       setUploadProgress(100);
       setUploadedAsset({ name: form.name, type: form.type });
       setUploadSuccess(true);
     } catch (error) {
       console.error('Upload failed:', error);
+      alert(`Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setUploading(false);
     }
@@ -198,6 +250,7 @@ export default function UploadPage() {
                 <option value="animation">Animation</option>
                 <option value="3d-model">3D Model</option>
                 <option value="audio">Audio</option>
+                <option value="video">Video</option>
                 <option value="texture">Texture</option>
               </select>
             </div>
