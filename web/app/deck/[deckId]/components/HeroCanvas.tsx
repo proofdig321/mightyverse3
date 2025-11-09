@@ -81,6 +81,14 @@ export function HeroCanvas({ card, isPlaying, currentTime, onTimeUpdate, animato
     }
   }, [card, playbackId, hlsUrl, ipfsCid]);
 
+  // Handle card with HLS background as video source
+  useEffect(() => {
+    if (card?.layers?.background?.includes('.m3u8')) {
+      // For converted holographic videos, also load as video source
+      loadVideoFromHLS(card.layers.background);
+    }
+  }, [card?.layers?.background]);
+
   // Auto-start animation when video is loaded
   useEffect(() => {
     if (isLoaded && (playbackId || hlsUrl || ipfsCid)) {
@@ -196,34 +204,63 @@ export function HeroCanvas({ card, isPlaying, currentTime, onTimeUpdate, animato
     
     try {
       setIsLoaded(false);
-      const layerPromises = [
-        loadImage(card.layers.background),
-        loadImage(card.layers.midground),
-        loadImage(card.layers.foreground)
-      ];
+      console.log('🎬 Loading holographic layers:', card.layers);
+      
+      // Check if background is HLS video (converted from Livepeer)
+      if (card.layers.background?.includes('.m3u8')) {
+        console.log('🎥 Background is HLS video, using video source instead of layers');
+        // For HLS video backgrounds, use the video loading path instead
+        await loadVideoFromHLS(card.layers.background);
+        setIsLoaded(true);
+        return;
+      }
+      
+      const layerPromises = [];
+      
+      if (card.layers.background) {
+        layerPromises.push(loadImage(card.layers.background));
+      }
+      if (card.layers.midground) {
+        layerPromises.push(loadImage(card.layers.midground));
+      }
+      if (card.layers.foreground) {
+        layerPromises.push(loadImage(card.layers.foreground));
+      }
 
-      const [bgImage, mgImage, fgImage] = await Promise.all(layerPromises);
+      if (layerPromises.length === 0) {
+        console.warn('No valid image layers found');
+        setIsLoaded(true);
+        return;
+      }
 
-      const newLayers: Layer[] = [
-        {
-          image: bgImage,
+      const loadedImages = await Promise.all(layerPromises);
+      const newLayers: Layer[] = [];
+      
+      let imageIndex = 0;
+      if (card.layers.background && !card.layers.background.includes('.m3u8')) {
+        newLayers.push({
+          image: loadedImages[imageIndex++],
           depth: 0.1,
           parallaxFactor: 0.2,
           holographicShift: 0.5
-        },
-        {
-          image: mgImage,
+        });
+      }
+      if (card.layers.midground) {
+        newLayers.push({
+          image: loadedImages[imageIndex++],
           depth: 0.5,
           parallaxFactor: 0.6,
           holographicShift: 1.0
-        },
-        {
-          image: fgImage,
+        });
+      }
+      if (card.layers.foreground) {
+        newLayers.push({
+          image: loadedImages[imageIndex++],
           depth: 0.9,
           parallaxFactor: 1.0,
           holographicShift: 1.5
-        }
-      ];
+        });
+      }
 
       setLayers(newLayers);
 
@@ -237,6 +274,48 @@ export function HeroCanvas({ card, isPlaying, currentTime, onTimeUpdate, animato
       setIsLoaded(true);
     } catch (error) {
       console.error('Failed to load card layers:', error);
+      setIsLoaded(true); // Still mark as loaded to prevent infinite loading
+    }
+  };
+
+  const loadVideoFromHLS = async (hlsUrl: string) => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    try {
+      console.log('🎬 Loading HLS video for holographic background:', hlsUrl);
+      
+      // Cleanup previous HLS instance
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+        hlsRef.current = null;
+      }
+
+      // Native HLS support (Safari/iOS)
+      if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = hlsUrl;
+        video.addEventListener('loadedmetadata', () => {
+          console.log('✅ Native HLS loaded for holographic');
+        });
+        return;
+      }
+
+      // Use HLS.js for other browsers
+      const { default: Hls } = await import('hls.js');
+      if (Hls.isSupported()) {
+        const hls = new Hls({ enableWorker: true, maxBufferLength: 30 });
+        hlsRef.current = hls;
+        hls.loadSource(hlsUrl);
+        hls.attachMedia(video);
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          console.log('✅ HLS.js loaded for holographic');
+        });
+        hls.on(Hls.Events.ERROR, (event, data) => {
+          console.error('❌ HLS error for holographic:', event, data);
+        });
+      }
+    } catch (error) {
+      console.error('Failed to load HLS video for holographic:', error);
     }
   };
 
@@ -290,7 +369,7 @@ export function HeroCanvas({ card, isPlaying, currentTime, onTimeUpdate, animato
     const mouseOffsetX = (mousePosition.x - 0.5) * holographicConfig.parallaxStrength;
     const mouseOffsetY = (mousePosition.y - 0.5) * holographicConfig.parallaxStrength;
 
-    // Render video with holographic effects if available
+    // Render video with holographic effects if available (priority over layers)
     if (video && video.readyState >= 2) {
       renderHolographicVideo(ctx, video, {
         time,
@@ -300,9 +379,8 @@ export function HeroCanvas({ card, isPlaying, currentTime, onTimeUpdate, animato
         height
       });
     }
-
-    // Render card layers if available
-    if (layers.length > 0) {
+    // Render card layers if available and no video
+    else if (layers.length > 0) {
       layers.forEach((layer, index) => {
         renderHolographicLayer(ctx, layer, {
           time,
@@ -614,7 +692,12 @@ export function HeroCanvas({ card, isPlaying, currentTime, onTimeUpdate, animato
         <div className="text-xs text-gray-400">
           <div className="flex justify-between">
             <span>Source:</span>
-            <span>{playbackId ? 'Livepeer HLS' : ipfsCid ? 'IPFS Video' : card ? 'Layer Files' : 'None'}</span>
+            <span>{
+              playbackId ? 'Livepeer HLS' : 
+              ipfsCid ? 'IPFS Video' : 
+              card?.layers?.background?.includes('.m3u8') ? 'Holographic HLS' :
+              card ? 'Layer Files' : 'None'
+            }</span>
           </div>
           <div className="flex justify-between">
             <span>Loaded:</span>

@@ -16,8 +16,10 @@ export async function POST(request: NextRequest) {
 
     // Create holographic layers from existing video
     const holographicLayers = {
-      background: asset.file_cid || asset.fileCid,
-      // Use original video as single layer for now
+      background: asset.livepeer_playback_id ? 
+        `https://lp-playback.com/hls/${asset.livepeer_playback_id}/index.m3u8` :
+        asset.file_cid || asset.fileCid,
+      // Use Livepeer HLS for video, IPFS for images
       // AI separation would generate additional layers
     };
 
