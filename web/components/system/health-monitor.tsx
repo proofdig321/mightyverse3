@@ -12,7 +12,7 @@ interface SystemHealth {
   gateways: {
     ipfs: number;
     livepeer: number;
-    total_active: number;
+    total: number;
   };
   cache: {
     tables: number;
@@ -157,7 +157,7 @@ export default function HealthMonitor() {
             </div>
             <div className="flex justify-between">
               <span className="text-gray-400">Total:</span>
-              <span className="text-green-400">{health.gateways.total_active}</span>
+              <span className="text-green-400">{health.gateways.total}</span>
             </div>
           </div>
         </div>
