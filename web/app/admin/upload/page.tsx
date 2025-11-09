@@ -12,11 +12,16 @@ import UploadSuccess from '../../../components/shared/upload-success';
 interface UploadForm {
   name: string;
   description: string;
-  type: 'animation' | '3d-model' | 'audio' | 'video' | 'image' | 'texture';
+  type: 'animation' | '3d-model' | 'audio' | 'video' | 'image' | 'texture' | 'holographic';
   category: string;
   tags: string[];
   file: File | null;
   thumbnail: File | null;
+  // 2.5D Layer files
+  backgroundLayer: File | null;
+  midgroundLayer: File | null;
+  foregroundLayer: File | null;
+  depthMap: File | null;
   metadata: {
     duration?: number;
     dimensions?: string;
@@ -25,6 +30,7 @@ interface UploadForm {
     sampleRate?: number;
     format: string;
     isrc?: string;
+    holographicType?: '2.5d' | 'layered' | 'single';
   };
 }
 
@@ -121,6 +127,10 @@ export default function AdminUploadPage() {
     tags: [],
     file: null,
     thumbnail: null,
+    backgroundLayer: null,
+    midgroundLayer: null,
+    foregroundLayer: null,
+    depthMap: null,
     metadata: { format: '' }
   });
   const [tagInput, setTagInput] = useState('');
@@ -135,7 +145,8 @@ export default function AdminUploadPage() {
     audio: ['Music', 'Sound Effects', 'Voice', 'Ambient', 'Podcast'],
     video: ['Animation', 'Live Action', 'Tutorial', 'Promotional'],
     image: ['Artwork', 'Photography', 'Concept Art', 'UI Design'],
-    texture: ['Materials', 'Patterns', 'Overlays', 'Backgrounds']
+    texture: ['Materials', 'Patterns', 'Overlays', 'Backgrounds'],
+    holographic: ['2.5D Scene', 'Layered Animation', 'Depth Video', 'Parallax Art']
   };
 
   const handleFileSelect = async (file: File) => {
@@ -244,25 +255,106 @@ export default function AdminUploadPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.file || !form.name) return;
+    
+    // Validation
+    if (form.type === 'holographic') {
+      if (!form.backgroundLayer || !form.name) {
+        alert('Background layer and name are required for holographic content');
+        return;
+      }
+    } else if (!form.file || !form.name) {
+      return;
+    }
 
     setUploading(true);
     setUploadProgress(0);
 
     try {
+      // Handle 2.5D Holographic Upload
+      if (form.type === 'holographic') {
+        console.log('Uploading 2.5D holographic layers...');
+        
+        const layerCids: any = {};
+        let progress = 0;
+        
+        // Upload background layer (required)
+        if (form.backgroundLayer) {
+          layerCids.background = await ipfsClient.pinFile(
+            form.backgroundLayer,
+            `${form.name}-bg-${Date.now()}`,
+            (p) => setUploadProgress(Math.round(progress + p * 0.4))
+          );
+          progress = 40;
+        }
+        
+        // Upload midground layer (optional)
+        if (form.midgroundLayer) {
+          layerCids.midground = await ipfsClient.pinFile(
+            form.midgroundLayer,
+            `${form.name}-mg-${Date.now()}`,
+            (p) => setUploadProgress(Math.round(progress + p * 0.25))
+          );
+          progress = 65;
+        }
+        
+        // Upload foreground layer (optional)
+        if (form.foregroundLayer) {
+          layerCids.foreground = await ipfsClient.pinFile(
+            form.foregroundLayer,
+            `${form.name}-fg-${Date.now()}`,
+            (p) => setUploadProgress(Math.round(progress + p * 0.25))
+          );
+          progress = 90;
+        }
+        
+        // Upload depth map (optional)
+        if (form.depthMap) {
+          layerCids.depthMapCid = await ipfsClient.pinFile(
+            form.depthMap,
+            `${form.name}-depth-${Date.now()}`,
+            (p) => setUploadProgress(Math.round(progress + p * 0.1))
+          );
+        }
+        
+        // Create holographic asset record
+        await enhancedDataManager.createItem('assets', {
+          name: form.name,
+          creator_wallet: wallet || '0x860Ec697167Ba865DdE1eC9e172004100613e970',
+          asset_type: 'holographic',
+          file_name: form.backgroundLayer?.name || 'holographic-asset',
+          file_size: (form.backgroundLayer?.size || 0) + (form.midgroundLayer?.size || 0) + (form.foregroundLayer?.size || 0),
+          mime_type: form.backgroundLayer?.type || 'video/mp4',
+          category: form.category,
+          tags: [...form.tags, '2.5d', 'holographic'],
+          status: 'approved',
+          metadata: {
+            ...form.metadata,
+            description: form.description,
+            holographicType: '2.5d',
+            layers: layerCids,
+            upload_method: 'holographic_layers'
+          }
+        });
+        
+        setUploadProgress(100);
+        setUploadedAsset({ name: form.name, type: form.type });
+        setUploadSuccess(true);
+        return;
+      }
+      
       let fileCid: string;
       let uploadMethod = 'ipfs';
 
       // Use Livepeer for video/audio, IPFS for other types
       if (form.type === 'video' || form.type === 'audio') {
         console.log('Uploading to Livepeer via TUS...', {
-          fileName: form.file.name,
-          fileSize: `${(form.file.size / 1024 / 1024).toFixed(1)} MB`,
-          fileType: form.file.type
+          fileName: form.file?.name,
+          fileSize: `${((form.file?.size || 0) / 1024 / 1024).toFixed(1)} MB`,
+          fileType: form.file?.type
         });
         
         const result = await uploadToLivepeer(
-          form.file, 
+          form.file!, 
           form.name, 
           form.thumbnail, 
           {
@@ -286,7 +378,7 @@ export default function AdminUploadPage() {
       // Fallback to existing IPFS flow
       console.log('Using IPFS upload flow...');
       fileCid = await ipfsClient.pinFile(
-        form.file,
+        form.file!,
         `${form.name}-${Date.now()}`,
         (progress) => setUploadProgress(Math.round(progress * 0.7))
       );
@@ -322,9 +414,9 @@ export default function AdminUploadPage() {
           asset_type: form.type,
           file_cid: fileCid,
           thumbnail_cid: thumbnailCid,
-          file_name: form.file.name,
-          file_size: form.file.size,
-          mime_type: form.file.type,
+          file_name: form.file?.name || 'unknown',
+          file_size: form.file?.size || 0,
+          mime_type: form.file?.type || 'application/octet-stream',
           category: form.category,
           tags: form.tags,
           status: 'approved', // Admin uploads are auto-approved
@@ -387,6 +479,10 @@ export default function AdminUploadPage() {
               tags: [],
               file: null,
               thumbnail: null,
+              backgroundLayer: null,
+              midgroundLayer: null,
+              foregroundLayer: null,
+              depthMap: null,
               metadata: { format: '' }
             });
           }}
@@ -427,6 +523,7 @@ export default function AdminUploadPage() {
                 <option value="animation">Animation</option>
                 <option value="3d-model">3D Model</option>
                 <option value="texture">Texture</option>
+                <option value="holographic">2.5D Holographic</option>
               </select>
             </div>
           </div>
@@ -549,52 +646,147 @@ export default function AdminUploadPage() {
         {/* File Upload */}
         <div>
           <h2 className="mv-heading-md mb-4">Files</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-2">Main File *</label>
-              <div className="border-2 border-dashed border-white/20 rounded-lg p-6 text-center">
-                <input
-                  type="file"
-                  onChange={(e) => e.target.files?.[0] && handleFileSelect(e.target.files[0])}
-                  accept=".mp4,.mov,.avi,.webm,.gif,.mp3,.wav,.flac,.ogg,.jpg,.jpeg,.png,.webp,.svg,.fbx,.obj,.glb,.gltf,.blend"
-                  className="hidden"
-                  id="main-file"
-                  required
-                />
-                <label htmlFor="main-file" className="cursor-pointer">
-                  <div className="text-4xl mb-2">📁</div>
-                  <div className="text-white mb-1">
-                    {form.file ? form.file.name : 'Click to upload file'}
+          
+          {form.type === 'holographic' ? (
+            /* 2.5D Layer Upload */
+            <div className="space-y-4">
+              <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
+                <h3 className="text-blue-400 font-medium mb-2">2.5D Holographic Layers</h3>
+                <p className="text-sm text-blue-300/80">Upload separate layer files for true 2.5D depth effect</p>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Background Layer */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">Background Layer *</label>
+                  <div className="border-2 border-dashed border-white/20 rounded-lg p-4 text-center">
+                    <input
+                      type="file"
+                      onChange={(e) => setForm(prev => ({ ...prev, backgroundLayer: e.target.files?.[0] || null }))}
+                      accept=".mp4,.mov,.avi,.webm,.jpg,.jpeg,.png,.webp"
+                      className="hidden"
+                      id="bg-layer"
+                      required
+                    />
+                    <label htmlFor="bg-layer" className="cursor-pointer">
+                      <div className="text-2xl mb-1">🌄</div>
+                      <div className="text-sm text-white">
+                        {form.backgroundLayer ? form.backgroundLayer.name : 'Background'}
+                      </div>
+                    </label>
                   </div>
-                  <div className="text-sm mv-text-muted">
-                    {form.file ? `${(form.file.size / 1024 / 1024).toFixed(1)} MB` : 'Max 100MB'}
+                </div>
+                
+                {/* Midground Layer */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">Midground Layer</label>
+                  <div className="border-2 border-dashed border-white/20 rounded-lg p-4 text-center">
+                    <input
+                      type="file"
+                      onChange={(e) => setForm(prev => ({ ...prev, midgroundLayer: e.target.files?.[0] || null }))}
+                      accept=".mp4,.mov,.avi,.webm,.jpg,.jpeg,.png,.webp"
+                      className="hidden"
+                      id="mg-layer"
+                    />
+                    <label htmlFor="mg-layer" className="cursor-pointer">
+                      <div className="text-2xl mb-1">🏢</div>
+                      <div className="text-sm text-white">
+                        {form.midgroundLayer ? form.midgroundLayer.name : 'Midground'}
+                      </div>
+                    </label>
                   </div>
-                </label>
+                </div>
+                
+                {/* Foreground Layer */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">Foreground Layer</label>
+                  <div className="border-2 border-dashed border-white/20 rounded-lg p-4 text-center">
+                    <input
+                      type="file"
+                      onChange={(e) => setForm(prev => ({ ...prev, foregroundLayer: e.target.files?.[0] || null }))}
+                      accept=".mp4,.mov,.avi,.webm,.jpg,.jpeg,.png,.webp"
+                      className="hidden"
+                      id="fg-layer"
+                    />
+                    <label htmlFor="fg-layer" className="cursor-pointer">
+                      <div className="text-2xl mb-1">👤</div>
+                      <div className="text-sm text-white">
+                        {form.foregroundLayer ? form.foregroundLayer.name : 'Foreground'}
+                      </div>
+                    </label>
+                  </div>
+                </div>
+                
+                {/* Depth Map */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">Depth Map (Optional)</label>
+                  <div className="border-2 border-dashed border-white/20 rounded-lg p-4 text-center">
+                    <input
+                      type="file"
+                      onChange={(e) => setForm(prev => ({ ...prev, depthMap: e.target.files?.[0] || null }))}
+                      accept=".jpg,.jpeg,.png,.webp"
+                      className="hidden"
+                      id="depth-map"
+                    />
+                    <label htmlFor="depth-map" className="cursor-pointer">
+                      <div className="text-2xl mb-1">🗺️</div>
+                      <div className="text-sm text-white">
+                        {form.depthMap ? form.depthMap.name : 'Depth Map'}
+                      </div>
+                    </label>
+                  </div>
+                </div>
               </div>
             </div>
-            
-            <div>
-              <label className="block text-sm font-medium mb-2">Thumbnail (Optional)</label>
-              <div className="border-2 border-dashed border-white/20 rounded-lg p-6 text-center">
-                <input
-                  type="file"
-                  onChange={(e) => setForm(prev => ({ ...prev, thumbnail: e.target.files?.[0] || null }))}
-                  accept=".jpg,.jpeg,.png,.webp"
-                  className="hidden"
-                  id="thumbnail-file"
-                />
-                <label htmlFor="thumbnail-file" className="cursor-pointer">
-                  <div className="text-4xl mb-2">🖼️</div>
-                  <div className="text-white mb-1">
-                    {form.thumbnail ? form.thumbnail.name : 'Click to upload thumbnail'}
-                  </div>
-                  <div className="text-sm mv-text-muted">
-                    {form.thumbnail ? `${(form.thumbnail.size / 1024 / 1024).toFixed(1)} MB` : 'JPG, PNG (Max 5MB)'}
-                  </div>
-                </label>
+          ) : (
+            /* Standard Upload */
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">Main File *</label>
+                <div className="border-2 border-dashed border-white/20 rounded-lg p-6 text-center">
+                  <input
+                    type="file"
+                    onChange={(e) => e.target.files?.[0] && handleFileSelect(e.target.files[0])}
+                    accept=".mp4,.mov,.avi,.webm,.gif,.mp3,.wav,.flac,.ogg,.jpg,.jpeg,.png,.webp,.svg,.fbx,.obj,.glb,.gltf,.blend"
+                    className="hidden"
+                    id="main-file"
+                    required
+                  />
+                  <label htmlFor="main-file" className="cursor-pointer">
+                    <div className="text-4xl mb-2">📁</div>
+                    <div className="text-white mb-1">
+                      {form.file ? form.file.name : 'Click to upload file'}
+                    </div>
+                    <div className="text-sm mv-text-muted">
+                      {form.file ? `${(form.file.size / 1024 / 1024).toFixed(1)} MB` : 'Max 100MB'}
+                    </div>
+                  </label>
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-2">Thumbnail (Optional)</label>
+                <div className="border-2 border-dashed border-white/20 rounded-lg p-6 text-center">
+                  <input
+                    type="file"
+                    onChange={(e) => setForm(prev => ({ ...prev, thumbnail: e.target.files?.[0] || null }))}
+                    accept=".jpg,.jpeg,.png,.webp"
+                    className="hidden"
+                    id="thumbnail-file"
+                  />
+                  <label htmlFor="thumbnail-file" className="cursor-pointer">
+                    <div className="text-4xl mb-2">🖼️</div>
+                    <div className="text-white mb-1">
+                      {form.thumbnail ? form.thumbnail.name : 'Click to upload thumbnail'}
+                    </div>
+                    <div className="text-sm mv-text-muted">
+                      {form.thumbnail ? `${(form.thumbnail.size / 1024 / 1024).toFixed(1)} MB` : 'JPG, PNG (Max 5MB)'}
+                    </div>
+                  </label>
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Upload Progress */}
@@ -633,6 +825,10 @@ export default function AdminUploadPage() {
               tags: [],
               file: null,
               thumbnail: null,
+              backgroundLayer: null,
+              midgroundLayer: null,
+              foregroundLayer: null,
+              depthMap: null,
               metadata: { format: '' }
             })}
           >

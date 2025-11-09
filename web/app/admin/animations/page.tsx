@@ -201,6 +201,37 @@ export default function AdminAnimationsPage() {
             >
               🔄 Sync Dashboard
             </button>
+            <button
+              onClick={async () => {
+                const assetIds = filteredAssets.map(a => a.id);
+                if (assetIds.length === 0) {
+                  alert('No assets to convert');
+                  return;
+                }
+                
+                if (!confirm(`Convert ${assetIds.length} video assets to 2.5D holographic?`)) return;
+                
+                let converted = 0;
+                for (const assetId of assetIds) {
+                  try {
+                    const response = await fetch('/api/assets/convert-to-holographic', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ assetId })
+                    });
+                    if (response.ok) converted++;
+                  } catch (error) {
+                    console.error(`Failed to convert ${assetId}:`, error);
+                  }
+                }
+                
+                alert(`Converted ${converted}/${assetIds.length} assets to holographic`);
+                await loadAssets();
+              }}
+              className="px-3 py-2 bg-cyan-600 hover:bg-cyan-700 rounded-lg text-white text-sm"
+            >
+              ◈ Convert to 2.5D
+            </button>
           </div>
         </div>
       </div>

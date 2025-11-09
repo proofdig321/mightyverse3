@@ -36,6 +36,13 @@ interface Asset {
     }>;
     isrc?: string;
     upload_method?: string;
+    layers?: {
+      background?: string;
+      midground?: string;
+      foreground?: string;
+      depthMapCid?: string;
+    };
+    holographicType?: string;
   };
   creator?: string;
   uploadedAt?: string;
@@ -49,9 +56,9 @@ export default function Animations() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(9);
   
-  // Get approved/published animations/videos (no curation gate like murals/campaigns)
+  // Get approved/published animations/videos/holographic (no curation gate like murals/campaigns)
   const filteredAssets = assets.filter(asset => {
-    const isAnimation = asset.asset_type === 'video' || asset.type === 'animation' || asset.type === 'video' || asset.mimeType?.startsWith('video/');
+    const isAnimation = asset.asset_type === 'video' || asset.asset_type === 'holographic' || asset.type === 'animation' || asset.type === 'video' || asset.mimeType?.startsWith('video/');
     const isApproved = asset.status === 'approved' || asset.status === 'published';
     return isAnimation && isApproved;
   });
@@ -69,11 +76,11 @@ export default function Animations() {
       // store raw assets locally
       setAssets(data as Asset[] || []);
 
-      // pick a featured approved animation to show by default
+      // pick a featured approved animation to show by default (prioritize holographic)
       const firstApproved = (data as Asset[] || []).find((asset: Asset) => {
-        const isAnimation = asset.asset_type === 'video' || asset.type === 'animation' || asset.type === 'video' || asset.mimeType?.startsWith('video/');
+        const isAnimation = asset.asset_type === 'video' || asset.asset_type === 'holographic' || asset.type === 'animation' || asset.type === 'video' || asset.mimeType?.startsWith('video/');
         return isAnimation && (asset.status === 'approved' || asset.status === 'published');
-      });
+      }) || (data as Asset[] || []).find((asset: Asset) => asset.asset_type === 'holographic');
 
       if (firstApproved) setSelectedAsset(firstApproved);
     } catch (err) {
@@ -129,6 +136,11 @@ export default function Animations() {
                 <HeroCanvas
                   playbackId={selectedAsset.livepeer_playback_id}
                   ipfsCid={selectedAsset.fileCid || selectedAsset.file_cid}
+                  card={(selectedAsset.metadata as any)?.layers ? {
+                    id: selectedAsset.id,
+                    title: selectedAsset.name,
+                    layers: (selectedAsset.metadata as any).layers
+                  } : undefined}
                   isPlaying={false}
                   currentTime={0}
                   onTimeUpdate={() => {}}
