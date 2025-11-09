@@ -14,39 +14,39 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Livepeer API key not configured' }, { status: 500 });
     }
 
-    const livepeer = new Livepeer({ apiKey });
+    // Use direct API call - SDK asset.create() is for URL imports, not uploads
+    const response = await fetch('https://livepeer.studio/api/asset/request-upload', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        name,
+        storage: enableIPFS ? { ipfs: true } : undefined
+      })
+    });
 
-    // Create asset upload request using SDK as documented
-    const assetData = {
-      name,
-      storage: enableIPFS ? { ipfs: true } : undefined
-    };
-
-    console.log('Creating Livepeer asset upload request:', assetData);
-    
-    const response = await livepeer.asset.create(assetData);
-    console.log('Livepeer SDK response:', JSON.stringify(response, null, 2));
-
-    // The response should contain the TUS endpoint and asset info
-    if (!response || typeof response !== 'object') {
-      throw new Error('Invalid response from Livepeer SDK');
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Livepeer API error:', response.status, errorText);
+      throw new Error(`Livepeer API failed: ${response.status}`);
     }
 
-    // Extract TUS endpoint from response
-    const tusEndpoint = (response as any).tusEndpoint || (response as any).url;
-    const asset = (response as any).asset || response;
+    const data = await response.json();
+    console.log('Livepeer response:', JSON.stringify(data, null, 2));
 
-    if (!tusEndpoint) {
-      console.error('No TUS endpoint in SDK response:', response);
-      throw new Error('TUS endpoint not provided by Livepeer SDK');
+    if (!data.tusEndpoint && !data.url) {
+      throw new Error('No TUS endpoint in response');
     }
 
-    console.log('TUS endpoint found:', tusEndpoint);
+    const tusEndpoint = data.tusEndpoint || data.url;
+    const asset = data.asset;
 
     return NextResponse.json({
       success: true,
       assetId: asset?.id,
-      tusEndpoint: tusEndpoint,
+      tusEndpoint,
       playbackId: asset?.playbackId,
       status: asset?.status?.phase || 'created'
     });

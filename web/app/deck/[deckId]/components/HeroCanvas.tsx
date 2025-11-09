@@ -74,10 +74,11 @@ export function HeroCanvas({ card, isPlaying, currentTime, onTimeUpdate, animato
   };
 
   useEffect(() => {
-    if (card) {
-      loadCardLayers();
-    } else if (playbackId || hlsUrl || ipfsCid) {
+    // Prioritize video sources over card layers
+    if (playbackId || hlsUrl || ipfsCid) {
       loadVideoSource();
+    } else if (card) {
+      loadCardLayers();
     }
   }, [card, playbackId, hlsUrl, ipfsCid]);
 
@@ -126,35 +127,37 @@ export function HeroCanvas({ card, isPlaying, currentTime, onTimeUpdate, animato
         hlsRef.current = null;
       }
 
-      const getHlsSource = () => {
+      const getVideoSource = () => {
         if (playbackId) {
           console.log('🎥 Loading Livepeer HLS:', playbackId);
-          return `https://lp-playback.com/hls/${playbackId}/index.m3u8`;
+          return {
+            url: `https://lp-playback.com/hls/${playbackId}/index.m3u8`,
+            type: 'hls'
+          };
         }
         if (hlsUrl) {
           console.log('🎥 Loading HLS URL:', hlsUrl);
-          return hlsUrl;
+          return { url: hlsUrl, type: 'hls' };
         }
         if (ipfsCid) {
           console.log('🎥 Loading IPFS video:', ipfsCid);
-          return `https://ipfs.io/ipfs/${ipfsCid}`;
+          return { url: `https://ipfs.io/ipfs/${ipfsCid}`, type: 'direct' };
         }
         return null;
       };
 
-      const src = getHlsSource();
-      if (!src) {
+      const source = getVideoSource();
+      if (!source) {
         console.warn('No video source available');
         return;
       }
 
-      console.log('🎬 Loading video source:', src);
+      console.log('🎬 Loading video source:', source);
 
-      // For HLS streams (Livepeer)
-      if (src.includes('.m3u8')) {
+      if (source.type === 'hls') {
         // Native HLS support (Safari/iOS)
         if (video.canPlayType('application/vnd.apple.mpegurl')) {
-          video.src = src;
+          video.src = source.url;
           video.addEventListener('loadedmetadata', () => {
             console.log('✅ Native HLS loaded');
             setIsLoaded(true);
@@ -167,7 +170,7 @@ export function HeroCanvas({ card, isPlaying, currentTime, onTimeUpdate, animato
         if (Hls.isSupported()) {
           const hls = new Hls({ enableWorker: true, maxBufferLength: 30 });
           hlsRef.current = hls;
-          hls.loadSource(src);
+          hls.loadSource(source.url);
           hls.attachMedia(video);
           hls.on(Hls.Events.MANIFEST_PARSED, () => {
             console.log('✅ HLS.js loaded');
@@ -176,16 +179,10 @@ export function HeroCanvas({ card, isPlaying, currentTime, onTimeUpdate, animato
           hls.on(Hls.Events.ERROR, (event, data) => {
             console.error('❌ HLS error:', event, data);
           });
-        } else {
-          console.warn('HLS not supported, falling back to direct video');
-          video.src = src;
-          video.addEventListener('loadedmetadata', () => {
-            setIsLoaded(true);
-          });
         }
       } else {
-        // Direct video file (IPFS)
-        video.src = src;
+        // Direct video file
+        video.src = source.url;
         video.addEventListener('loadedmetadata', () => {
           console.log('✅ Direct video loaded');
           setIsLoaded(true);
