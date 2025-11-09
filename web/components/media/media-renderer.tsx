@@ -210,8 +210,9 @@ export default function MediaRenderer({
   const effectiveMimeType = mimeType || (fileName?.match(/\.(mp4|mov|webm)$/i) ? 'video/mp4' : undefined);
   if (effectiveMimeType?.startsWith('video/') || fileName?.match(/\.(mp4|mov|webm|gif)$/i)) {
     const shouldUseLivepeer = (currentPlaybackId || livepeerPlaybackId) && !livepeerFailed;
+    const playbackId = livepeerPlaybackId || currentPlaybackId;
     const videoUrl = shouldUseLivepeer
-      ? (livepeerPlaybackUrl || currentPlaybackUrl || `https://lp-playback.com/hls/${livepeerPlaybackId || currentPlaybackId}/index.m3u8`)
+      ? (livepeerPlaybackUrl || currentPlaybackUrl || `https://vod-cdn.lp-playback.studio/raw/jxf4iblf6wlsyor6526t4tcmtmqa/catalyst-vod-com/hls/${playbackId}/video/download.mp4`)
       : fileUrl;
     
     const isLivepeer = shouldUseLivepeer;

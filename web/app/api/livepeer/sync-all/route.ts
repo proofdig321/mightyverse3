@@ -35,13 +35,13 @@ export async function POST() {
       try {
         console.log('Processing asset:', { id: asset.id, name: asset.name, status: asset.status?.phase });
         
-        // Check if asset already exists in database
+        // Check if asset already exists in database (by asset ID or CID)
         const { data: existingAssets } = await supabase
           .from('assets')
-          .select('id, livepeer_asset_id')
-          .eq('livepeer_asset_id', asset.id);
+          .select('id, livepeer_asset_id, file_cid')
+          .or(`livepeer_asset_id.eq.${asset.id},file_cid.eq.${asset.storage?.ipfs?.cid || 'null'}`);
 
-        console.log('Existing assets found:', existingAssets?.length || 0);
+        console.log('Existing assets found:', existingAssets?.length || 0, 'for asset:', asset.id);
 
         if (existingAssets && existingAssets.length > 0) {
           // Update existing asset
@@ -49,7 +49,6 @@ export async function POST() {
             .from('assets')
             .update({
               livepeer_playback_id: asset.playbackId,
-              livepeer_playback_url: asset.playbackUrl,
               livepeer_status: asset.status?.phase || 'unknown',
               file_cid: asset.storage?.ipfs?.cid || null,
               updated_at: new Date().toISOString()
@@ -68,7 +67,6 @@ export async function POST() {
             status: 'approved',
             livepeer_asset_id: asset.id,
             livepeer_playback_id: asset.playbackId,
-            livepeer_playback_url: asset.playbackUrl,
             livepeer_status: asset.status?.phase || 'unknown',
             mime_type: 'video/mp4',
             file_name: asset.name,
