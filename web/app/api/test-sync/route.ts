@@ -37,7 +37,19 @@ export async function GET() {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Insert directly
+    // Check for existing asset first
+    const { data: existing, error: checkError } = await supabase
+      .from('assets')
+      .select('id')
+      .eq('livepeer_asset_id', asset.id)
+      .maybeSingle();
+
+    if (existing) {
+      console.log('✅ Asset already exists:', existing.id);
+      return NextResponse.json({ success: true, message: 'Asset already exists', asset: existing });
+    }
+
+    // Insert only if not exists
     const { data, error } = await supabase
       .from('assets')
       .insert({
