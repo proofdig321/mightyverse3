@@ -40,6 +40,14 @@ export async function POST(request: NextRequest) {
         timestamp: new Date().toISOString()
       }
     }));
+    
+    // Add to animations group if video/animation
+    const isVideoContent = file.type.startsWith('video/') || name?.toLowerCase().includes('animation');
+    if (isVideoContent) {
+      uploadFormData.append('pinataOptions', JSON.stringify({
+        groupId: '2e1ca446-a880-45f4-8ee1-148c961be93a'
+      }));
+    }
 
     const response = await fetch('https://api.pinata.cloud/pinning/pinFileToIPFS', {
       method: 'POST',
