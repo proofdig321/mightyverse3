@@ -2,6 +2,11 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
 export async function GET() {
+  // Prevent automatic sync during build process
+  if (process.env.NODE_ENV === 'production' && !process.env.MANUAL_SYNC) {
+    return NextResponse.json({ message: 'Sync disabled during build' });
+  }
+  
   try {
     console.log('🔄 Direct sync test starting...');
     

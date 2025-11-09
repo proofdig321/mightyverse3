@@ -50,10 +50,12 @@ async function uploadToLivepeer(file: File, name: string, thumbnail: File | null
     throw new Error(`Upload request failed: ${response.status} - ${errorText}`);
   }
   
-  const { success, assetId, tusEndpoint } = await response.json();
+  const { success, assetId, tusEndpoint, error, details } = await response.json();
   
   if (!success || !tusEndpoint) {
-    throw new Error('Failed to get TUS endpoint from Livepeer');
+    const errorMsg = details || error || 'Failed to get TUS endpoint from Livepeer';
+    console.error('TUS endpoint request failed:', errorMsg);
+    throw new Error(errorMsg);
   }
   
   console.log('TUS endpoint received:', tusEndpoint);
