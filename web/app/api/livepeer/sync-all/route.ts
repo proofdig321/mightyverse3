@@ -81,15 +81,16 @@ export async function POST() {
           
           console.log('Asset data to insert:', newAsset);
           
-          const { error } = await supabase
+          const { data, error } = await supabase
             .from('assets')
-            .insert(newAsset);
+            .insert(newAsset)
+            .select();
 
           if (error) {
             console.error('Insert error:', error);
             results.errors.push({ asset_id: asset.id, error: error.message });
           } else {
-            console.log('Asset created successfully');
+            console.log('Asset created successfully:', data);
             results.created++;
           }
         }
