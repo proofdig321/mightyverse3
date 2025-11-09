@@ -72,18 +72,20 @@ export default function AdminAnimationsPage() {
       const data = await enhancedDataManager.getData('assets');
       console.log('Assets loaded:', data.length, 'items');
       
-      // Log CID information for debugging
+      // Log ALL asset information for debugging
       data.forEach((asset, index) => {
-        if (asset.file_cid || asset.fileCid) {
-          console.log(`Asset ${index}:`, {
-            id: asset.id,
-            name: asset.name,
-            file_cid: asset.file_cid,
-            fileCid: asset.fileCid,
-            mime_type: asset.mime_type,
-            mimeType: asset.mimeType
-          });
-        }
+        console.log(`Asset ${index}:`, {
+          id: asset.id,
+          name: asset.name,
+          file_cid: asset.file_cid,
+          fileCid: asset.fileCid,
+          livepeer_asset_id: asset.livepeer_asset_id,
+          livepeer_playback_id: asset.livepeer_playback_id,
+          livepeer_playback_url: asset.livepeer_playback_url,
+          mime_type: asset.mime_type,
+          mimeType: asset.mimeType,
+          status: asset.status
+        });
       });
       
       setAssets(data as Asset[]);
