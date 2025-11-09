@@ -17,11 +17,10 @@ interface GatewayConfig {
 
 class GatewayManager {
   private ipfsGateways: GatewayConfig[] = [
-    { url: 'https://gateway.pinata.cloud/ipfs/', priority: 1, timeout: 5000, retries: 2, status: 'active', lastCheck: 0 },
-    { url: 'https://ipfs.io/ipfs/', priority: 2, timeout: 8000, retries: 2, status: 'active', lastCheck: 0 },
-    { url: 'https://cloudflare-ipfs.com/ipfs/', priority: 3, timeout: 5000, retries: 1, status: 'active', lastCheck: 0 },
-    { url: 'https://w3s.link/ipfs/', priority: 4, timeout: 8000, retries: 1, status: 'active', lastCheck: 0 },
-    { url: 'https://dweb.link/ipfs/', priority: 5, timeout: 10000, retries: 1, status: 'active', lastCheck: 0 }
+    { url: 'https://ipfs.io/ipfs/', priority: 1, timeout: 5000, retries: 2, status: 'active', lastCheck: 0 },
+    { url: 'https://cloudflare-ipfs.com/ipfs/', priority: 2, timeout: 5000, retries: 2, status: 'active', lastCheck: 0 },
+    { url: 'https://w3s.link/ipfs/', priority: 3, timeout: 8000, retries: 1, status: 'active', lastCheck: 0 },
+    { url: 'https://dweb.link/ipfs/', priority: 4, timeout: 10000, retries: 1, status: 'active', lastCheck: 0 }
   ];
 
   private livepeerEndpoints: GatewayConfig[] = [

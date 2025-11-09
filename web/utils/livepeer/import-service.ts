@@ -18,11 +18,11 @@ export interface LivepeerUploadRequest {
 }
 
 export async function importFromIPFS(cid: string, name?: string): Promise<LivepeerAsset> {
-  // Try multiple gateway URLs for better success rate
+  // Try multiple gateway URLs for better success rate (CORS-friendly only)
   const gatewayUrls = [
     `https://ipfs.io/ipfs/${cid}`,
-    `https://gateway.pinata.cloud/ipfs/${cid}`,
-    `https://cloudflare-ipfs.com/ipfs/${cid}`
+    `https://cloudflare-ipfs.com/ipfs/${cid}`,
+    `https://w3s.link/ipfs/${cid}`
   ];
   
   if (!process.env.LIVEPEER_API_KEY) {

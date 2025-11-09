@@ -181,8 +181,9 @@ export default function MediaRenderer({
     );
   }
 
-  // Video and Animation rendering
-  if (mimeType?.startsWith('video/') || fileName?.match(/\.(mp4|mov|webm|gif)$/i)) {
+  // Video and Animation rendering (with MIME type fallback)
+  const effectiveMimeType = mimeType || (fileName?.match(/\.(mp4|mov|webm)$/i) ? 'video/mp4' : undefined);
+  if (effectiveMimeType?.startsWith('video/') || fileName?.match(/\.(mp4|mov|webm|gif)$/i)) {
     const shouldUseLivepeer = livepeerPlaybackId && !livepeerFailed;
     const videoUrl = shouldUseLivepeer
       ? (livepeerPlaybackUrl || `https://lp-playback.com/hls/${livepeerPlaybackId}/index.m3u8`)
@@ -237,7 +238,7 @@ export default function MediaRenderer({
             }}
             style={{ objectFit: 'contain' }}
           >
-            <source src={fileUrl} type={mimeType || 'video/mp4'} />
+            <source src={fileUrl} type={effectiveMimeType || 'video/mp4'} />
             Your browser does not support video playback.
           </video>
         )}
