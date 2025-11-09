@@ -15,7 +15,7 @@ export async function GET() {
       gateways: {
         ipfs: health.gateways.ipfs.filter(g => g.status === 'active').length,
         livepeer: health.gateways.livepeer.filter(g => g.status === 'active').length,
-        total_active: [...health.gateways.ipfs, ...health.gateways.livepeer].filter(g => g.status === 'active').length
+        total: health.gateways.ipfs.filter(g => g.status === 'active').length + health.gateways.livepeer.filter(g => g.status === 'active').length
       },
       cache: {
         tables: health.cache.cachedTables.length,
