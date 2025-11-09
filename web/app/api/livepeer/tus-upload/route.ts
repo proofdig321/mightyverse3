@@ -16,57 +16,32 @@ export async function POST(request: NextRequest) {
 
     const livepeer = new Livepeer({ apiKey });
 
-    // Create asset upload request
+    // Create asset upload request using SDK as documented
     const assetData = {
       name,
       storage: enableIPFS ? { ipfs: true } : undefined
     };
 
-    console.log('Creating Livepeer asset:', assetData);
+    console.log('Creating Livepeer asset upload request:', assetData);
+    
     const response = await livepeer.asset.create(assetData);
+    console.log('Livepeer SDK response:', JSON.stringify(response, null, 2));
 
-    if (!response) {
-      throw new Error('Failed to create asset upload request');
+    // The response should contain the TUS endpoint and asset info
+    if (!response || typeof response !== 'object') {
+      throw new Error('Invalid response from Livepeer SDK');
     }
 
-    console.log('Livepeer response:', JSON.stringify(response, null, 2));
+    // Extract TUS endpoint from response
+    const tusEndpoint = (response as any).tusEndpoint || (response as any).url;
+    const asset = (response as any).asset || response;
 
-    // Try direct REST API approach if SDK doesn't provide TUS endpoint
-    if (!response.tusEndpoint && !response.tus_endpoint) {
-      console.log('SDK response missing TUS endpoint, trying direct API...');
-      
-      const directResponse = await fetch('https://livepeer.studio/api/asset/request-upload', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          name,
-          storage: enableIPFS ? { ipfs: true } : undefined
-        })
-      });
-
-      if (!directResponse.ok) {
-        throw new Error(`Direct API failed: ${directResponse.status}`);
-      }
-
-      const directData = await directResponse.json();
-      console.log('Direct API response:', JSON.stringify(directData, null, 2));
-
-      return NextResponse.json({
-        success: true,
-        assetId: directData.asset?.id,
-        tusEndpoint: directData.tusEndpoint || directData.url,
-        playbackId: directData.asset?.playbackId,
-        status: directData.asset?.status?.phase || 'created'
-      });
+    if (!tusEndpoint) {
+      console.error('No TUS endpoint in SDK response:', response);
+      throw new Error('TUS endpoint not provided by Livepeer SDK');
     }
 
-    // Handle SDK response
-    const uploadResponse = response as any;
-    const asset = uploadResponse.asset || uploadResponse;
-    const tusEndpoint = uploadResponse.tusEndpoint || uploadResponse.tus_endpoint || asset.tusEndpoint;
+    console.log('TUS endpoint found:', tusEndpoint);
 
     return NextResponse.json({
       success: true,
