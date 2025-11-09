@@ -22,6 +22,8 @@ export default function MediaRenderer({
   const [livepeerPlaybackId, setLivepeerPlaybackId] = useState<string | null>(null);
   const [useIpfs, setUseIpfs] = useState(false);
   const [livepeerFailed, setLivepeerFailed] = useState(false);
+  const [importAttempted, setImportAttempted] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   
   // Use gateway manager for intelligent fallback
   const [gateway, setGateway] = useState<string>('https://ipfs.io/ipfs/');
@@ -29,11 +31,23 @@ export default function MediaRenderer({
   useEffect(() => {
     console.log('MediaRenderer fileCid:', fileCid, 'type:', typeof fileCid);
     if (fileCid && fileCid.trim() !== '') {
+      // Basic CID validation
+      const validPrefixes = ['Qm', 'bafy', 'bafk', 'bafz'];
+      const hasValidPrefix = validPrefixes.some(prefix => fileCid.startsWith(prefix));
+      
+      if (!hasValidPrefix || fileCid.length < 46) {
+        console.warn('Invalid CID format:', fileCid);
+        setErrorMessage('Invalid content identifier');
+        setError(true);
+        return;
+      }
+      
       import('../../utils/storage/enhanced-data-store').then(({ gatewayManager }) => {
         gatewayManager.getIPFSUrl(fileCid)
           .then(setGateway)
           .catch((err) => {
             console.error('Gateway manager failed for CID:', fileCid, 'Error:', err);
+            setErrorMessage('Content gateway unavailable');
             setError(true);
           });
       });
@@ -59,19 +73,29 @@ export default function MediaRenderer({
             fetch(`/api/livepeer/import`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ cid: fileCid, name: fileName })
+              body: JSON.stringify({ ipfsCid: fileCid, name: fileName })
             })
             .then(res => res.json())
+            .then(res => {
+              if (!res.ok) {
+                throw new Error(`Import failed: ${res.status}`);
+              }
+              return res.json();
+            })
             .then(importData => {
-              if (importData.playbackId) {
+              if (importData.success && importData.playbackId) {
                 setLivepeerPlaybackId(importData.playbackId);
                 setLivepeerPlaybackUrl(importData.playbackUrl || null);
+                setImportAttempted(true);
+              } else {
+                console.log('Livepeer import unsuccessful:', importData);
+                setImportAttempted(true);
               }
-              // Note: No fallback here - let video onError handle IPFS fallback
             })
             .catch(err => {
               console.log('Livepeer import failed:', err);
-              // Let video onError handle IPFS fallback
+              setImportAttempted(true);
+              setErrorMessage('Stream optimization failed, using direct IPFS');
             });
           }
         })
@@ -207,7 +231,9 @@ export default function MediaRenderer({
             onCanPlay={() => setLoading(false)}
             onError={(e) => {
               console.error('Video failed:', e);
-              setError(true);
+              setLivepeerFailed(true);
+              setErrorMessage('Video playback failed, trying alternative source');
+              // Don't set error=true immediately, let IPFS fallback work
             }}
             style={{ objectFit: 'contain' }}
           >
@@ -237,6 +263,13 @@ export default function MediaRenderer({
         ) : livepeerFailed && (
           <div className="absolute top-2 right-2 bg-yellow-500/80 text-white text-xs px-2 py-1 rounded">
             📡 IPFS
+          </div>
+        )}
+        
+        {/* Error Message */}
+        {errorMessage && (
+          <div className="absolute bottom-2 left-2 bg-red-500/80 text-white text-xs px-2 py-1 rounded max-w-xs">
+            {errorMessage}
           </div>
         )}
         

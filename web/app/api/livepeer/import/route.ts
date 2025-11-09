@@ -12,6 +12,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'IPFS CID is required' }, { status: 400 });
     }
     
+    // Validate CID format
+    const validPrefixes = ['Qm', 'bafy', 'bafk', 'bafz'];
+    const hasValidPrefix = validPrefixes.some(prefix => ipfsCid.startsWith(prefix));
+    
+    if (!hasValidPrefix || ipfsCid.length < 46 || ipfsCid.length > 62) {
+      return NextResponse.json({ 
+        error: 'Invalid CID format',
+        details: `CID must start with valid prefix and be 46-62 characters. Received: ${ipfsCid}` 
+      }, { status: 400 });
+    }
+    
     if (!process.env.LIVEPEER_API_KEY) {
       console.error('LIVEPEER_API_KEY not configured');
       return NextResponse.json({ error: 'Livepeer API not configured' }, { status: 500 });

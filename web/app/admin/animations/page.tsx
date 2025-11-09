@@ -46,6 +46,7 @@ export default function AdminAnimationsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(6);
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
+  const [recovering, setRecovering] = useState(false);
 
   const totalPages = Math.ceil(assets.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -67,9 +68,25 @@ export default function AdminAnimationsPage() {
 
   const loadAssets = async () => {
     try {
+      console.log('Loading assets...');
       const data = await enhancedDataManager.getData('assets');
+      console.log('Assets loaded:', data.length, 'items');
+      
+      // Log CID information for debugging
+      data.forEach((asset, index) => {
+        if (asset.file_cid || asset.fileCid) {
+          console.log(`Asset ${index}:`, {
+            id: asset.id,
+            name: asset.name,
+            file_cid: asset.file_cid,
+            fileCid: asset.fileCid,
+            mime_type: asset.mime_type,
+            mimeType: asset.mimeType
+          });
+        }
+      });
+      
       setAssets(data as Asset[]);
-      // Don't auto-select first asset to avoid duplicate display
       setSelectedAsset(null);
     } catch (error) {
       console.error('Failed to load assets:', error);
@@ -93,6 +110,23 @@ export default function AdminAnimationsPage() {
       await loadAssets();
     } catch (error) {
       console.error('Failed to toggle curated status:', error);
+    }
+  };
+
+  const handleDataRecovery = async () => {
+    setRecovering(true);
+    try {
+      const response = await fetch('/api/system/recover', { method: 'POST' });
+      const result = await response.json();
+      console.log('Recovery result:', result);
+      
+      // Force reload after recovery
+      enhancedDataManager.clearAllCaches();
+      await loadAssets();
+    } catch (error) {
+      console.error('Recovery failed:', error);
+    } finally {
+      setRecovering(false);
     }
   };
 
@@ -140,6 +174,13 @@ export default function AdminAnimationsPage() {
               <option value="approved">Approved</option>
               <option value="rejected">Rejected</option>
             </select>
+            <button
+              onClick={handleDataRecovery}
+              disabled={recovering}
+              className="px-3 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 rounded-lg text-white text-sm"
+            >
+              {recovering ? '🔄 Recovering...' : '🔧 Fix Data'}
+            </button>
           </div>
         </div>
       </div>

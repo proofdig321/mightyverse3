@@ -148,40 +148,54 @@ class EnhancedDataManager {
       return this.cache.get(table)!;
     }
 
-    try {
-      if (this.useSupabase) {
-        const { data, error } = await supabaseClient
-          .from(table)
-          .select('*')
-          .order('created_at', { ascending: false });
+    if (this.useSupabase) {
+      // Retry logic for Supabase
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          const { data, error } = await supabaseClient
+            .from(table)
+            .select('*')
+            .order('created_at', { ascending: false });
 
-        if (error) {
-          console.warn(`Supabase error for ${table}:`, error.message);
-          // If table doesn't exist (404), use mock data
-          if (error.code === 'PGRST116' || error.message.includes('does not exist')) {
-            const mockData = this.getMockData(table);
-            this.cache.set(table, mockData);
-            return mockData;
+          if (error) {
+            // Only use fallback for table not found, not connection issues
+            if (error.code === 'PGRST116' || error.message.includes('does not exist')) {
+              console.warn(`Table ${table} not found, using empty data`);
+              const emptyData: DataItem[] = [];
+              this.cache.set(table, emptyData);
+              return emptyData;
+            }
+            
+            if (attempt === 3) {
+              console.error(`Supabase failed after 3 attempts for ${table}:`, error.message);
+              throw error;
+            }
+            
+            console.warn(`Supabase attempt ${attempt} failed for ${table}, retrying...`);
+            await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+            continue;
           }
-          throw error;
+          
+          const normalizedData = this.normalizeData(data || []);
+          this.cache.set(table, normalizedData);
+          return normalizedData;
+        } catch (error) {
+          if (attempt === 3) {
+            console.error(`Final attempt failed for ${table}:`, error);
+            // Return empty data instead of potentially wrong localStorage data
+            const emptyData: DataItem[] = [];
+            this.cache.set(table, emptyData);
+            return emptyData;
+          }
         }
-        
-        const normalizedData = this.normalizeData(data || []);
-        this.cache.set(table, normalizedData);
-        return normalizedData;
-      } else {
-        // Enhanced fallback with localStorage persistence
-        const mockData = this.getMockData(table);
-        this.cache.set(table, mockData);
-        return mockData;
       }
-    } catch (error) {
-      console.error(`Failed to fetch ${table}:`, error);
-      // Return mock data as fallback
-      const mockData = this.getMockData(table);
-      this.cache.set(table, mockData);
-      return mockData;
     }
+    
+    // Fallback mode - return empty data to prevent wrong CIDs
+    console.warn(`Using fallback mode for ${table}`);
+    const emptyData: DataItem[] = [];
+    this.cache.set(table, emptyData);
+    return emptyData;
   }
 
   async createItem(table: string, item: Omit<DataItem, 'id'>): Promise<DataItem> {
@@ -431,6 +445,12 @@ class EnhancedDataManager {
   clearAllCaches(): void {
     this.cache.clear();
     gatewayManager.clearCache();
+    // Force clear localStorage fallback data
+    if (typeof window !== 'undefined') {
+      ['assets', 'murals', 'campaigns', 'users', 'processing_jobs'].forEach(table => {
+        localStorage.removeItem(`mighty_${table}`);
+      });
+    }
     this.subscribers.forEach((_, table) => {
       this.notifySubscribers(table);
     });
@@ -620,6 +640,34 @@ class EnhancedDataManager {
       content: contentIntegrity,
       timestamp: new Date().toISOString()
     };
+  }
+
+  // Recovery mechanism for data inconsistencies
+  async recoverDataIntegrity(): Promise<{ recovered: boolean; actions: string[] }> {
+    const actions: string[] = [];
+    
+    try {
+      // Clear all caches
+      this.clearAllCaches();
+      actions.push('Cleared all caches');
+      
+      // Reset circuit breakers
+      gatewayManager.clearCache();
+      actions.push('Reset circuit breakers');
+      
+      // Force fresh data load
+      await this.getData('assets');
+      actions.push('Forced fresh data load');
+      
+      // Validate integrity after recovery
+      const integrity = await this.validateContentIntegrity();
+      actions.push(`Validation complete: ${integrity.issues.length} issues remaining`);
+      
+      return { recovered: integrity.issues.length === 0, actions };
+    } catch (error) {
+      actions.push(`Recovery failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      return { recovered: false, actions };
+    }
   }
 }
 
