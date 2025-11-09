@@ -206,7 +206,7 @@ export default function AdminAnimationsPage() {
                   console.error('❌ Sync failed:', error);
                   alert('Sync failed. Check console for details.');
                 }
-              }
+              }}
               className="px-3 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-white text-sm"
             >
               🔄 Sync Livepeer
