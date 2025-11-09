@@ -7,6 +7,9 @@ interface MediaRendererProps {
   thumbnailCid?: string;
   mimeType?: string;
   fileName?: string;
+  livepeerPlaybackId?: string;
+  livepeerPlaybackUrl?: string;
+  livepeerAssetId?: string;
   className?: string;
 }
 
@@ -15,6 +18,9 @@ export default function MediaRenderer({
   thumbnailCid, 
   mimeType, 
   fileName,
+  livepeerPlaybackId,
+  livepeerPlaybackUrl,
+  livepeerAssetId,
   className = "w-full h-48 object-cover rounded-lg"
 }: MediaRendererProps) {
   const [loading, setLoading] = useState(true);
@@ -58,12 +64,18 @@ export default function MediaRenderer({
   
   const [livepeerPlaybackUrl, setLivepeerPlaybackUrl] = useState<string | null>(null);
 
-  // Check for Livepeer stream availability (primary)
+  // Livepeer-first initialization
   useEffect(() => {
+    // If we already have Livepeer data, use it immediately
+    if (livepeerPlaybackId) {
+      console.log('Using existing Livepeer data:', livepeerPlaybackId);
+      setLivepeerPlaybackId(livepeerPlaybackId);
+      setLivepeerPlaybackUrl(livepeerPlaybackUrl || null);
+      return;
+    }
+    
+    // Only attempt import for video files without existing Livepeer data
     if (fileCid && (mimeType?.startsWith('video/') || fileName?.match(/\.(mp4|mov|webm)$/i))) {
-      // Skip auto-import if asset already has Livepeer data
-      const hasLivepeerData = window.location.pathname.includes('/admin/animations');
-      if (hasLivepeerData) return;
       // First check existing stream
       fetch(`/api/livepeer/stream?cid=${fileCid}`)
         .then(res => res.json())
@@ -107,7 +119,7 @@ export default function MediaRenderer({
           // Let video onError handle IPFS fallback
         });
     }
-  }, [fileCid, mimeType, fileName]);
+  }, [fileCid, mimeType, fileName, livepeerPlaybackId, livepeerPlaybackUrl]);
   
   if (!fileCid) {
     return (
@@ -121,8 +133,10 @@ export default function MediaRenderer({
   }
 
   const fileUrl = gateway.includes(fileCid) ? gateway : `${gateway}${fileCid}`;
+  // Prioritize Livepeer thumbnails over IPFS
   const thumbnailUrl = thumbnailCid ? 
-    `https://ipfs.io/ipfs/${thumbnailCid}` : null;
+    `https://ipfs.io/ipfs/${thumbnailCid}` : 
+    (livepeerPlaybackId ? `https://image.livepeer.studio/asset/${livepeerAssetId}/thumbnail.jpg` : null);
   
   console.log('MediaRenderer URLs - fileUrl:', fileUrl, 'thumbnailUrl:', thumbnailUrl, 'gateway:', gateway);
   console.log('MediaRenderer mimeType:', mimeType, 'fileName:', fileName);

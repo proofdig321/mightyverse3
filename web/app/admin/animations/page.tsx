@@ -22,6 +22,10 @@ interface Asset {
   file_name?: string;
   mimeType?: string;
   mime_type?: string;
+  livepeer_asset_id?: string;
+  livepeer_playback_id?: string;
+  livepeer_playback_url?: string;
+  livepeer_status?: string;
   metadata?: {
     duration?: number;
     renditions?: Array<{
@@ -255,6 +259,9 @@ export default function AdminAnimationsPage() {
               thumbnailCid={selectedAsset.thumbnailCid || selectedAsset.thumbnail_cid}
               mimeType={selectedAsset.mimeType || selectedAsset.mime_type}
               fileName={selectedAsset.fileName || selectedAsset.file_name}
+              livepeerPlaybackId={selectedAsset.livepeer_playback_id}
+              livepeerPlaybackUrl={selectedAsset.livepeer_playback_url}
+              livepeerAssetId={selectedAsset.livepeer_asset_id}
               className="w-full h-full object-cover"
             />
           </div>
@@ -274,7 +281,7 @@ export default function AdminAnimationsPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
         {paginatedAssets.map((asset) => (
           <div 
-            key={asset.id}
+            key={`asset-${asset.id}-${asset.livepeer_playback_id || 'ipfs'}`}
             className={`mv-card cursor-pointer group transition-all duration-300 ${
               selectedAsset?.id === asset.id ? 'ring-2 ring-yellow-400 scale-105' : 'hover:scale-102'
             }`}
@@ -288,6 +295,9 @@ export default function AdminAnimationsPage() {
                   thumbnailCid={asset.thumbnailCid || asset.thumbnail_cid}
                   mimeType={asset.mimeType || asset.mime_type}
                   fileName={asset.fileName || asset.file_name}
+                  livepeerPlaybackId={asset.livepeer_playback_id}
+                  livepeerPlaybackUrl={asset.livepeer_playback_url}
+                  livepeerAssetId={asset.livepeer_asset_id}
                   className="w-full h-full object-cover"
                 />
               ) : (
