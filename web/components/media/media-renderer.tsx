@@ -209,12 +209,14 @@ export default function MediaRenderer({
   // Video and Animation rendering (with MIME type fallback)
   const effectiveMimeType = mimeType || (fileName?.match(/\.(mp4|mov|webm)$/i) ? 'video/mp4' : undefined);
   if (effectiveMimeType?.startsWith('video/') || fileName?.match(/\.(mp4|mov|webm|gif)$/i)) {
-    const shouldUseLivepeer = currentPlaybackId && !livepeerFailed;
+    const shouldUseLivepeer = (currentPlaybackId || livepeerPlaybackId) && !livepeerFailed;
     const videoUrl = shouldUseLivepeer
-      ? (currentPlaybackUrl || `https://lp-playback.com/hls/${currentPlaybackId}/index.m3u8`)
+      ? (livepeerPlaybackUrl || currentPlaybackUrl || `https://lp-playback.com/hls/${livepeerPlaybackId || currentPlaybackId}/index.m3u8`)
       : fileUrl;
     
     const isLivepeer = shouldUseLivepeer;
+    
+    console.log('🎥 Video rendering - shouldUseLivepeer:', shouldUseLivepeer, 'videoUrl:', videoUrl);
     
     return (
       <div className="relative group">
@@ -236,7 +238,7 @@ export default function MediaRenderer({
             }}
             style={{ objectFit: 'contain' }}
           >
-            <source src={videoUrl} type="application/x-mpegURL" />
+            <source src={videoUrl} type={videoUrl.includes('.m3u8') ? 'application/x-mpegURL' : 'video/mp4'} />
             <track kind="captions" />
             Your browser does not support video playback.
           </video>
