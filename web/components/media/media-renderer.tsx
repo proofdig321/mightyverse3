@@ -141,10 +141,10 @@ export default function MediaRenderer({
   }
 
   const fileUrl = gateway.includes(fileCid) ? gateway : `${gateway}${fileCid}`;
-  // Prioritize Livepeer thumbnails over IPFS
-  const thumbnailUrl = thumbnailCid ? 
-    `https://ipfs.io/ipfs/${thumbnailCid}` : 
-    (livepeerPlaybackId ? `https://image.livepeer.studio/asset/${livepeerAssetId}/thumbnail.jpg` : null);
+  // Prioritize Livepeer thumbnails over IPFS for cover images
+  const thumbnailUrl = livepeerPlaybackId ? 
+    `https://image.livepeer.studio/asset/${livepeerAssetId}/thumbnail.jpg` :
+    (thumbnailCid ? `https://ipfs.io/ipfs/${thumbnailCid}` : null);
   
   console.log('MediaRenderer URLs - fileUrl:', fileUrl, 'thumbnailUrl:', thumbnailUrl, 'gateway:', gateway);
   console.log('MediaRenderer mimeType:', mimeType, 'fileName:', fileName);

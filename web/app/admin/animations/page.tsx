@@ -218,6 +218,24 @@ export default function AdminAnimationsPage() {
             </button>
             <button
               onClick={async () => {
+                console.log('🔧 Starting asset reconciliation...');
+                try {
+                  const response = await fetch('/api/assets/reconcile', { method: 'POST' });
+                  const result = await response.json();
+                  console.log('✅ Reconciliation result:', result);
+                  alert(`Reconciliation Complete: ${result.message}`);
+                  await loadAssets();
+                } catch (error) {
+                  console.error('❌ Reconciliation failed:', error);
+                  alert('Reconciliation failed. Check console for details.');
+                }
+              }}
+              className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 rounded-lg text-white text-sm"
+            >
+              🔧 Reconcile Assets
+            </button>
+            <button
+              onClick={async () => {
                 if (confirm('⚠️ OPTION B: COMPLETE RESET\n\nThis will DELETE ALL ASSETS from database.\n\nBefore clicking OK:\n1. Delete all files from Pinata dashboard\n2. Delete all assets from Livepeer dashboard\n3. Then click OK for database cleanup\n\nProceed with complete reset?')) {
                   try {
                     const response = await fetch('/api/admin/cleanup', { method: 'POST' });
