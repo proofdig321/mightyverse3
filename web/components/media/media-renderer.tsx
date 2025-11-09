@@ -228,7 +228,7 @@ export default function MediaRenderer({
             preload="metadata"
             playsInline
             crossOrigin="anonymous"
-            className={`${className} bg-black`}
+            className={`${className} bg-black relative z-20`}
             poster={thumbnailUrl && thumbnailUrl !== 'https://ipfs.io/ipfs/' ? thumbnailUrl : undefined}
             onLoadStart={() => setLoading(false)}
             onLoadedData={() => setLoading(false)}
@@ -253,7 +253,7 @@ export default function MediaRenderer({
             autoPlay={fileName?.includes('.gif')}
             loop={fileName?.includes('.gif')}
             muted={fileName?.includes('.gif')}
-            className={`${className} bg-black`}
+            className={`${className} bg-black relative z-20`}
             poster={thumbnailUrl && thumbnailUrl !== 'https://ipfs.io/ipfs/' ? thumbnailUrl : undefined}
             onLoadStart={() => setLoading(false)}
             onLoadedData={() => setLoading(false)}
@@ -286,24 +286,24 @@ export default function MediaRenderer({
         
         {/* Performance Indicator */}
         {isLivepeer ? (
-          <div className="absolute top-2 right-2 bg-green-500/80 text-white text-xs px-2 py-1 rounded">
+          <div className="absolute top-2 right-2 bg-green-500/80 text-white text-xs px-2 py-1 rounded z-10 pointer-events-none">
             ⚡ Fast
           </div>
         ) : livepeerFailed && (
-          <div className="absolute top-2 right-2 bg-yellow-500/80 text-white text-xs px-2 py-1 rounded">
+          <div className="absolute top-2 right-2 bg-yellow-500/80 text-white text-xs px-2 py-1 rounded z-10 pointer-events-none">
             📡 IPFS
           </div>
         )}
         
         {/* Error Message */}
         {errorMessage && (
-          <div className="absolute bottom-2 left-2 bg-red-500/80 text-white text-xs px-2 py-1 rounded max-w-xs">
+          <div className="absolute bottom-16 left-2 bg-red-500/80 text-white text-xs px-2 py-1 rounded max-w-xs z-10 pointer-events-none">
             {errorMessage}
           </div>
         )}
         
         {/* Holographic Overlay Effect */}
-        <div className="absolute inset-0 pointer-events-none opacity-20 group-hover:opacity-30 transition-opacity">
+        <div className="absolute inset-0 pointer-events-none opacity-20 group-hover:opacity-30 transition-opacity z-0">
           <div className="absolute inset-0 bg-gradient-to-br from-yellow-400/10 via-transparent to-blue-400/10 animate-pulse" />
         </div>
       </div>
