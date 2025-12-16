@@ -28,9 +28,11 @@ interface DashboardStat {
 
 const quickActions = [
   { name: 'Demo Integration', href: '/admin/demo-integration', icon: '🎯', description: 'Comprehensive demo functionality hub' },
+  { name: 'Upload Layers', href: '/animator/upload-layers', icon: '◈', description: 'Upload holographic layer files' },
   { name: 'Upload Media', href: '/admin/upload', icon: '⬆️', description: 'Upload audio, video, and visual assets' },
   { name: 'View Assets', href: '/admin/assets', icon: '📋', description: 'Review and manage all assets' },
   { name: 'Manage Animations', href: '/admin/animations', icon: '🎬', description: 'Review and curate animation submissions' },
+  { name: 'Manage Layers', href: '/animator/layers', icon: '📋', description: 'Manage holographic murals' },
   { name: 'View Murals', href: '/murals', icon: '◉', description: 'Interactive card deck experiences' },
   { name: 'Manage Roles', href: '/admin/rbac', icon: '👥', description: 'Assign and manage user roles' },
   { name: 'Campaign Setup', href: '/admin/campaigns', icon: '📢', description: 'Create new advertising campaigns' },

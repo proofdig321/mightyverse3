@@ -208,15 +208,20 @@ export default function AnimatorDashboard() {
         )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
+          <Link href="/animator/upload-layers" className="mv-card p-4 cursor-pointer hover:bg-white/10 transition-colors">
+            <div className="text-3xl mb-2">◈</div>
+            <h3 className="font-semibold text-white mb-1">Upload Layers</h3>
+            <p className="text-sm mv-text-muted">Upload holographic layer files</p>
+          </Link>
+          <Link href="/animator/layers" className="mv-card p-4 cursor-pointer hover:bg-white/10 transition-colors">
+            <div className="text-3xl mb-2">📋</div>
+            <h3 className="font-semibold text-white mb-1">Manage Murals</h3>
+            <p className="text-sm mv-text-muted">View and edit your murals</p>
+          </Link>
           <Link href="/animator/upload" className="mv-card p-4 cursor-pointer hover:bg-white/10 transition-colors">
             <div className="text-3xl mb-2">📤</div>
             <h3 className="font-semibold text-white mb-1">Upload Assets</h3>
-            <p className="text-sm mv-text-muted">Upload new animations and models</p>
-          </Link>
-          <Link href="/animator/submissions" className="mv-card p-4 cursor-pointer hover:bg-white/10 transition-colors">
-            <div className="text-3xl mb-2">📋</div>
-            <h3 className="font-semibold text-white mb-1">Submissions</h3>
-            <p className="text-sm mv-text-muted">Track submission status</p>
+            <p className="text-sm mv-text-muted">Upload animations and models</p>
           </Link>
           <div className="mv-card p-4 cursor-pointer hover:bg-white/10 transition-colors">
             <div className="text-3xl mb-2">🎨</div>
