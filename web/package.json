@@ -13,6 +13,8 @@
     "@thirdweb-dev/chains": "^0.1.64",
     "@thirdweb-dev/react": "^4.9.4",
     "ethers": "^5.7.2",
+    "@aws-sdk/client-s3": "^3.350.0",
+    "@aws-sdk/s3-request-presigner": "^3.350.0",
     "hls.js": "^1.4.12",
     "jose": "^5.2.0",
     "livepeer": "^3.5.0",

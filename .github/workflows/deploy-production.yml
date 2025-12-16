@@ -1,0 +1,45 @@
+name: Deploy production
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies (web)
+        run: |
+          cd web
+          npm ci
+
+      - name: Build web (next)
+        run: |
+          cd web
+          npm run build
+
+      - name: Deploy web to Vercel (requires VERCEL_TOKEN secret)
+        uses: amondnet/vercel-action@v20
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          vercel-args: '--prod'
+
+      - name: Push service images to registry (example)
+        run: |
+          echo "Building and pushing service images - placeholder step"
+          # Implement your CI image build and push here (Docker login, build, push)
+
+      - name: Deploy server services
+        run: |
+          echo "Trigger remote deployment (SSH / orchestration) - placeholder"
+          # Use SSH to run `docker-compose -f docker-compose.prod.yml pull && docker-compose -f docker-compose.prod.yml up -d`
+

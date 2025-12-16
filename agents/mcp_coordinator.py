@@ -7,10 +7,15 @@ Orchestrates 8-agent deployment for The Mighty Verse platform integration
 import asyncio
 import json
 import logging
+import os
 from datetime import datetime
 from enum import Enum
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, asdict
+import psycopg2
+from psycopg2.extras import RealDictCursor
+import boto3
+from botocore.exceptions import ClientError
 
 class AgentType(Enum):
     INFRASTRUCTURE = "infrastructure"
@@ -56,6 +61,9 @@ class MCPAgentCoordinator:
         self.results = {}
         self.dependencies = {}
         self.logger = self._setup_logging()
+        self.db_connection = None
+        self.s3_client = None
+        self._init_connections()
         
     def _setup_logging(self):
         logging.basicConfig(
@@ -63,6 +71,27 @@ class MCPAgentCoordinator:
             format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
         )
         return logging.getLogger('MCP_Coordinator')
+    
+    def _init_connections(self):
+        """Initialize database and S3 connections"""
+        try:
+            # Database connection
+            database_url = os.getenv('DATABASE_URL')
+            if database_url:
+                self.db_connection = psycopg2.connect(database_url)
+                self.logger.info("Database connection established")
+            
+            # S3 client
+            if all(os.getenv(key) for key in ['S3_ACCESS_KEY_ID', 'S3_SECRET_ACCESS_KEY', 'S3_REGION']):
+                self.s3_client = boto3.client(
+                    's3',
+                    aws_access_key_id=os.getenv('S3_ACCESS_KEY_ID'),
+                    aws_secret_access_key=os.getenv('S3_SECRET_ACCESS_KEY'),
+                    region_name=os.getenv('S3_REGION')
+                )
+                self.logger.info("S3 connection established")
+        except Exception as e:
+            self.logger.warning(f"Connection initialization failed: {e}")
     
     def register_agent(self, agent_type: AgentType, agent_instance):
         """Register an agent with the coordinator"""
@@ -376,19 +405,124 @@ class InfrastructureAgent(MCPAgent):
             "real_time_sync": "enabled"
         }
 
-if __name__ == "__main__":
-    # Example usage
-    async def main():
-        coordinator = MCPAgentCoordinator()
-        
-        # Register agents
-        coordinator.register_agent(AgentType.INFRASTRUCTURE, InfrastructureAgent())
-        
-        # Execute deployment plan
-        await coordinator.execute_deployment_plan()
-        
-        # Export report
-        report = coordinator.export_deployment_report()
-        print(report)
+# FastAPI Production Server
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+import uvicorn
+
+app = FastAPI(
+    title="MCP Coordinator",
+    description="Central orchestration service for Mighty Verse agents",
+    version="1.0.0"
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Global coordinator instance
+coordinator = MCPAgentCoordinator()
+coordinator.register_agent(AgentType.INFRASTRUCTURE, InfrastructureAgent())
+
+@app.get("/")
+async def root():
+    return {"message": "MCP Coordinator is running", "version": "1.0.0"}
+
+@app.get("/api/mcp/health")
+async def health_check():
+    return {
+        "status": "healthy",
+        "timestamp": datetime.now().isoformat(),
+        "version": "1.0.0",
+        "agents": len(coordinator.agents),
+        "tasks": len(coordinator.tasks)
+    }
+
+@app.get("/api/mcp/status")
+async def status():
+    return coordinator.get_deployment_status()
+
+@app.post("/api/mcp/execute")
+async def execute_task(task_data: dict):
+    if task_data.get("task") == "ping":
+        return {"status": "pong", "timestamp": datetime.now().isoformat()}
+    elif task_data.get("task") == "validate_upload":
+        return await validate_upload_pipeline()
+    return {"status": "executed", "task": task_data.get("task", "unknown")}
+
+@app.get("/api/mcp/pipeline/status")
+async def pipeline_status():
+    """Check upload pipeline and database connectivity"""
+    status = {
+        "database": "disconnected",
+        "s3": "disconnected",
+        "livepeer": "unknown",
+        "timestamp": datetime.now().isoformat()
+    }
     
-    asyncio.run(main())
+    # Check database
+    if coordinator.db_connection:
+        try:
+            with coordinator.db_connection.cursor() as cursor:
+                cursor.execute("SELECT 1")
+                status["database"] = "connected"
+        except Exception as e:
+            status["database"] = f"error: {str(e)}"
+    
+    # Check S3
+    if coordinator.s3_client:
+        try:
+            bucket = os.getenv('S3_BUCKET')
+            if bucket:
+                coordinator.s3_client.head_bucket(Bucket=bucket)
+                status["s3"] = "connected"
+        except Exception as e:
+            status["s3"] = f"error: {str(e)}"
+    
+    # Check Livepeer
+    livepeer_key = os.getenv('LIVEPEER_API_KEY')
+    if livepeer_key:
+        status["livepeer"] = "configured"
+    
+    return status
+
+async def validate_upload_pipeline():
+    """Validate end-to-end upload pipeline"""
+    validation_results = {
+        "database_check": False,
+        "s3_check": False,
+        "assets_table": False,
+        "timestamp": datetime.now().isoformat()
+    }
+    
+    # Database validation
+    if coordinator.db_connection:
+        try:
+            with coordinator.db_connection.cursor(cursor_factory=RealDictCursor) as cursor:
+                cursor.execute("SELECT COUNT(*) as count FROM assets LIMIT 1")
+                result = cursor.fetchone()
+                validation_results["database_check"] = True
+                validation_results["assets_table"] = True
+                validation_results["asset_count"] = result['count']
+        except Exception as e:
+            validation_results["database_error"] = str(e)
+    
+    # S3 validation
+    if coordinator.s3_client:
+        try:
+            bucket = os.getenv('S3_BUCKET')
+            if bucket:
+                coordinator.s3_client.list_objects_v2(Bucket=bucket, MaxKeys=1)
+                validation_results["s3_check"] = True
+        except Exception as e:
+            validation_results["s3_error"] = str(e)
+    
+    return validation_results
+
+if __name__ == "__main__":
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
