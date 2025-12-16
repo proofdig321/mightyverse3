@@ -79,7 +79,48 @@ export async function POST(request: NextRequest) {
     // Step 5: Upload processed file to Livepeer
     await uploadToLivepeer(uploadRequest.uploadUrl, processedFile);
 
-    // Step 6: Create asset record with all metadata (bypasses Livepeer)
+    // Step 6: Check for existing content groups and manage versions
+    const existingGroups = await enhancedDataManager.searchItems(
+      'content_groups', 
+      name || file.name, 
+      ['title']
+    );
+
+    let contentGroup;
+    let versionNumber = 1;
+    let isNewGroup = true;
+
+    if (existingGroups.length > 0) {
+      const similarGroup = existingGroups.find(group => 
+        group.title.toLowerCase() === (name || file.name).toLowerCase() &&
+        Math.abs((group.duration || 0) - (metadata.duration || 0)) < 10
+      );
+      
+      if (similarGroup) {
+        contentGroup = similarGroup;
+        const existingVersions = await enhancedDataManager.getData('content_versions');
+        const groupVersions = existingVersions.filter(v => v.group_id === similarGroup.id);
+        versionNumber = groupVersions.length + 1;
+        isNewGroup = false;
+        
+        await enhancedDataManager.updateItem('content_groups', similarGroup.id, {
+          total_versions: versionNumber,
+          updated_at: new Date().toISOString()
+        });
+      }
+    }
+
+    if (!contentGroup) {
+      contentGroup = await enhancedDataManager.createItem('content_groups', {
+        title: name || file.name,
+        original_artist: metadata.artist || 'Unknown',
+        genre: category || 'Digital Art',
+        duration: metadata.duration || 180,
+        total_versions: 1
+      });
+    }
+
+    // Step 7: Create asset record with version info
     const assetData = await enhancedDataManager.createItem('assets', {
       name: name || file.name,
       creator_wallet: creatorWallet || '0x860Ec697167Ba865DdE1eC9e172004100613e970',
@@ -87,19 +128,33 @@ export async function POST(request: NextRequest) {
       file_name: file.name,
       file_size: file.size,
       mime_type: file.type,
-      thumbnail_cid: thumbnailCid, // Direct IPFS storage
+      thumbnail_cid: thumbnailCid,
       category: category,
       tags: tags,
       status: 'processing',
       livepeer_asset_id: uploadRequest.assetId,
       livepeer_status: 'processing',
       export_status: 'pending',
+      content_group_id: contentGroup.id,
       metadata: {
         ...metadata,
         description: description,
         upload_method: 'livepeer_direct',
-        original_filename: file.name
+        original_filename: file.name,
+        version_number: versionNumber,
+        is_new_group: isNewGroup
       }
+    });
+
+    // Step 8: Create version record
+    const contentVersion = await enhancedDataManager.createItem('content_versions', {
+      group_id: contentGroup.id,
+      asset_id: assetData.id,
+      animator_wallet: creatorWallet || '0x860Ec697167Ba865DdE1eC9e172004100613e970',
+      animator_style: metadata.animator_style || 'standard',
+      version_number: versionNumber,
+      is_official: false, // Becomes true when admin approves
+      quality_score: 0.8
     });
 
     console.log('Asset created with Livepeer integration:', assetData.id);
@@ -108,7 +163,11 @@ export async function POST(request: NextRequest) {
       success: true,
       assetId: assetData.id,
       livepeerAssetId: uploadRequest.assetId,
-      message: 'Upload successful, transcoding in progress',
+      contentGroupId: contentGroup.id,
+      versionId: contentVersion.id,
+      versionNumber: versionNumber,
+      isNewGroup: isNewGroup,
+      message: isNewGroup ? 'New content uploaded' : `Version ${versionNumber} uploaded for existing content`,
       details: {
         fileSize: `${(file.size / 1024 / 1024).toFixed(1)} MB`,
         mimeType: file.type,

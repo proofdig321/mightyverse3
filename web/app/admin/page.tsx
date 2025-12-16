@@ -28,6 +28,7 @@ interface DashboardStat {
 
 const quickActions = [
   { name: 'Demo Integration', href: '/admin/demo-integration', icon: '🎯', description: 'Comprehensive demo functionality hub' },
+  { name: 'Version Approval', href: '/admin/versions', icon: '✅', description: 'Approve animator versions as official' },
   { name: 'Upload Layers', href: '/animator/upload-layers', icon: '◈', description: 'Upload holographic layer files' },
   { name: 'Upload Media', href: '/admin/upload', icon: '⬆️', description: 'Upload audio, video, and visual assets' },
   { name: 'View Assets', href: '/admin/assets', icon: '📋', description: 'Review and manage all assets' },
@@ -50,29 +51,33 @@ export default function AdminDashboard() {
     // Set up real-time subscriptions
     const unsubscribeAssets = enhancedDataManager.subscribe('assets', loadStats);
     const unsubscribeCampaigns = enhancedDataManager.subscribe('campaigns', loadStats);
+    const unsubscribeVersions = enhancedDataManager.subscribe('content_versions', loadStats);
     
     return () => {
       unsubscribeAssets();
       unsubscribeCampaigns();
+      unsubscribeVersions();
     };
   }, []);
 
   const loadStats = async () => {
     try {
-      const [assets, campaigns, users, jobs] = await Promise.all([
+      const [assets, campaigns, users, jobs, versions] = await Promise.all([
         enhancedDataManager.getData('assets'),
         enhancedDataManager.getData('campaigns'), 
         enhancedDataManager.getData('users'),
-        enhancedDataManager.getData('processing_jobs')
+        enhancedDataManager.getData('processing_jobs'),
+        enhancedDataManager.getData('content_versions')
       ]);
 
       const pendingAssets = assets.filter(a => a.status === 'submitted').length;
       const activeCampaigns = campaigns.filter(c => c.status === 'active').length;
       const processingAssets = assets.filter(a => a.livepeer_status === 'processing').length;
       const readyAssets = assets.filter(a => a.livepeer_status === 'ready').length;
+      const pendingVersions = versions.filter(v => !v.is_official).length;
 
       setStats([
-        { name: 'Pending Assets', value: pendingAssets.toString(), change: '', changeType: 'increase', href: '/admin/assets' },
+        { name: 'Pending Versions', value: pendingVersions.toString(), change: '', changeType: 'increase', href: '/admin/versions' },
         { name: 'Processing', value: processingAssets.toString(), change: '', changeType: 'decrease', href: '/admin/assets' },
         { name: 'Ready to Stream', value: readyAssets.toString(), change: '', changeType: 'increase', href: '/admin/assets' },
         { name: 'Active Campaigns', value: activeCampaigns.toString(), change: '', changeType: 'increase', href: '/admin/campaigns' },
@@ -80,7 +85,7 @@ export default function AdminDashboard() {
     } catch (error) {
       console.error('Failed to load stats:', error);
       setStats([
-        { name: 'Pending Assets', value: '0', change: '', changeType: 'increase', href: '/admin/assets' },
+        { name: 'Pending Versions', value: '0', change: '', changeType: 'increase', href: '/admin/versions' },
         { name: 'Processing', value: '0', change: '', changeType: 'decrease', href: '/admin/assets' },
         { name: 'Ready to Stream', value: '0', change: '', changeType: 'increase', href: '/admin/assets' },
         { name: 'Active Campaigns', value: '0', change: '', changeType: 'increase', href: '/admin/campaigns' },
