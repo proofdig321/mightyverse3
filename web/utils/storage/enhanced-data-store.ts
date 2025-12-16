@@ -57,7 +57,8 @@ class EnhancedDataManager {
     // Check if Supabase is properly configured
     this.useSupabase = !!(process.env.NEXT_PUBLIC_SUPABASE_URL && 
                          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY &&
-                         process.env.NEXT_PUBLIC_SUPABASE_URL !== 'https://your-project.supabase.co');
+                         process.env.NEXT_PUBLIC_SUPABASE_URL !== 'https://your-project.supabase.co' &&
+                         process.env.NEXT_PUBLIC_SUPABASE_URL !== 'https://placeholder.supabase.co');
     
     if (!this.useSupabase) {
       console.warn('EnhancedDataManager: Using localStorage fallback - Supabase not configured');

@@ -160,11 +160,16 @@ export default function AdminUploadPage() {
   };
 
   const handleFileSelect = async (file: File) => {
-    // Check file size (100MB limit - direct Pinata upload for large files)
-    const maxSize = 100 * 1024 * 1024; // 100MB
-    if (file.size > maxSize) {
-      alert(`File too large. Maximum size is 100MB, got ${(file.size / 1024 / 1024).toFixed(1)}MB. Please compress your file.`);
+    // Enhanced validation using new utilities
+    const validation = await import('../../../utils/upload/validation').then(m => m.validateFile(file));
+    
+    if (!validation.valid) {
+      alert(`Upload failed: ${validation.errors.join(', ')}`);
       return;
+    }
+    
+    if (validation.warnings.length > 0) {
+      console.warn('Upload warnings:', validation.warnings);
     }
     
     // Validate Livepeer-compatible formats for video/audio
@@ -762,13 +767,16 @@ export default function AdminUploadPage() {
                     id="main-file"
                     required
                   />
-                  <label htmlFor="main-file" className="cursor-pointer">
+                  <label htmlFor="main-file" className="cursor-pointer mv-touch-target">
                     <div className="text-4xl mb-2">📁</div>
                     <div className="text-white mb-1">
                       {form.file ? form.file.name : 'Click to upload file'}
                     </div>
                     <div className="text-sm mv-text-muted">
                       {form.file ? `${(form.file.size / 1024 / 1024).toFixed(1)} MB` : 'Max 100MB'}
+                    </div>
+                    <div className="text-xs text-blue-400 mt-1">
+                      Tap to select • Drag & drop supported
                     </div>
                   </label>
                 </div>

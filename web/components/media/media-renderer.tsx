@@ -36,7 +36,14 @@ export default function MediaRenderer({
   const [gateway, setGateway] = useState<string>('https://ipfs.io/ipfs/');
   
   useEffect(() => {
-    console.log('MediaRenderer fileCid:', fileCid, 'type:', typeof fileCid);
+    console.log('🎬 MediaRenderer Debug:', {
+    fileCid,
+    mimeType,
+    fileName,
+    livepeerPlaybackId,
+    livepeerAssetId,
+    hasLivepeerData: !!(livepeerPlaybackId || livepeerAssetId)
+  });
     if (fileCid && fileCid.trim() !== '') {
       // Basic CID validation
       const validPrefixes = ['Qm', 'bafy', 'bafk', 'bafz'];
@@ -65,11 +72,12 @@ export default function MediaRenderer({
 
   // Livepeer-first initialization
   useEffect(() => {
-    console.log('🎬 MediaRenderer Livepeer props:', {
+    console.log('🎬 MediaRenderer Livepeer Analysis:', {
       livepeerPlaybackId,
       livepeerPlaybackUrl,
       livepeerAssetId,
-      fileCid
+      fileCid,
+      shouldAttemptImport: !livepeerPlaybackId && fileCid && (mimeType?.startsWith('video/') || fileName?.match(/\.(mp4|mov|webm)$/i))
     });
     
     // If we already have Livepeer data, use it immediately
@@ -233,9 +241,15 @@ export default function MediaRenderer({
             onLoadStart={() => setLoading(false)}
             onLoadedData={() => setLoading(false)}
             onCanPlay={() => setLoading(false)}
-            onError={() => {
-              console.log('Livepeer failed, falling back to IPFS');
+            onError={(e) => {
+              console.error('🚨 Livepeer playback failed:', {
+                error: e,
+                videoUrl,
+                playbackId,
+                timestamp: new Date().toISOString()
+              });
               setLivepeerFailed(true);
+              setErrorMessage('Livepeer stream failed, switching to IPFS');
             }}
             style={{ width: '100%', height: '100%' }}
           >
@@ -259,10 +273,15 @@ export default function MediaRenderer({
             onLoadedData={() => setLoading(false)}
             onCanPlay={() => setLoading(false)}
             onError={(e) => {
-              console.error('Video failed:', e);
-              setLivepeerFailed(true);
-              setErrorMessage('Video playback failed, trying alternative source');
-              // Don't set error=true immediately, let IPFS fallback work
+              console.error('🚨 IPFS video playback failed:', {
+                error: e,
+                fileUrl,
+                fileCid,
+                mimeType,
+                timestamp: new Date().toISOString()
+              });
+              setError(true);
+              setErrorMessage('Video playback failed on all sources');
             }}
             style={{ width: '100%', height: '100%' }}
           >
