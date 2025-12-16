@@ -452,7 +452,48 @@ async def execute_task(task_data: dict):
         return {"status": "pong", "timestamp": datetime.now().isoformat()}
     elif task_data.get("task") == "validate_upload":
         return await validate_upload_pipeline()
+    elif task_data.get("task") == "process_upload":
+        return await process_upload_task(task_data.get("payload", {}))
     return {"status": "executed", "task": task_data.get("task", "unknown")}
+
+async def process_upload_task(payload):
+    """Process upload completion and trigger agents"""
+    asset_id = payload.get("assetId")
+    asset = payload.get("asset", {})
+    
+    if not asset_id:
+        return {"error": "assetId required"}
+    
+    # Update workflow state
+    if coordinator.db_connection:
+        try:
+            with coordinator.db_connection.cursor(cursor_factory=RealDictCursor) as cursor:
+                cursor.execute("""
+                    INSERT INTO workflow_states (content_id, content_type, workflow_type, current_stage, status, created_by)
+                    VALUES (%s, 'asset', 'processing', 1, 'in_progress', %s)
+                    ON CONFLICT (content_id, content_type, workflow_type) DO UPDATE SET
+                    current_stage = 1, status = 'in_progress', updated_at = NOW()
+                """, (asset_id, asset.get('creator_wallet', 'system')))
+                coordinator.db_connection.commit()
+        except Exception as e:
+            coordinator.logger.error(f"Workflow state update failed: {e}")
+    
+    # Trigger processing based on asset type
+    processing_tasks = []
+    
+    if asset.get('mime_type', '').startswith('video/'):
+        processing_tasks.extend(['livepeer_upload', 'thumbnail_generation'])
+    elif asset.get('mime_type', '').startswith('image/'):
+        processing_tasks.extend(['image_optimization', 'thumbnail_generation'])
+    
+    processing_tasks.append('ipfs_pinning')
+    
+    return {
+        "status": "processing_initiated",
+        "asset_id": asset_id,
+        "tasks_queued": processing_tasks,
+        "timestamp": datetime.now().isoformat()
+    }
 
 @app.get("/api/mcp/pipeline/status")
 async def pipeline_status():
