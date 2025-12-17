@@ -1,0 +1,16 @@
+[build]
+builder = "dockerfile"
+dockerfilePath = "mcp-server/Dockerfile"
+buildContext = "mcp-server"
+
+[deploy]
+startCommand = "uvicorn mcp_coordinator:app --host 0.0.0.0 --port 8000"
+healthcheckPath = "/api/mcp/health"
+healthcheckTimeout = 300
+
+[environments.production.variables]
+MCP_AUTH_TOKEN = "mcp_prod_token_secure"
+SUPABASE_URL = "https://sroy6olz8li3u7o3cvummq.supabase.co"
+SUPABASE_SERVICE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNyb3k2b2x6OGxpM3U3bzNjdnVtbXEiLCJyb2xlIjoic2VydmljZV9yb2xlIiwiaWF0IjoxNzM0MzQ3Mjk0LCJleHAiOjIwNDk5MjMyOTR9.sb_secret_tm9zq4aF_8rllEOsIorrbA_BQXTrPGy"
+LIVEPEER_API_KEY = "99764289-df40-4cba-ab77-3105df4bf7a9"
+PORT = "8000"
