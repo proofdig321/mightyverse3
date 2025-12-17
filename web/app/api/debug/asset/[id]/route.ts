@@ -16,7 +16,12 @@ export async function GET(
       return NextResponse.json({ error: 'Asset not found' }, { status: 404 });
     }
 
-    const debug = {
+    const debug: {
+      asset: any;
+      urls: Record<string, string>;
+      tests: Record<string, any>;
+      timestamp: string;
+    } = {
       asset,
       urls: {},
       tests: {},
