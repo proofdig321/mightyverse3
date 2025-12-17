@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
     // Notify MCP if configured
     if (process.env.MCP_ENDPOINT && process.env.MCP_AUTH_TOKEN) {
       try {
-        await fetch(process.env.MCP_ENDPOINT, {
+        await fetch(`${process.env.MCP_ENDPOINT}/api/mcp/execute`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
