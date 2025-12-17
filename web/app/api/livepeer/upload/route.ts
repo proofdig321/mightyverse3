@@ -5,9 +5,8 @@ import { createMetadataPayload, embedMetadataIntoFile } from '../../../../utils/
 
 export async function POST(request: NextRequest) {
   try {
-    // Handle large file uploads - check content length
     const contentLength = request.headers.get('content-length');
-    if (contentLength && parseInt(contentLength) > 200 * 1024 * 1024) { // 200MB limit
+    if (contentLength && parseInt(contentLength) > 200 * 1024 * 1024) {
       return NextResponse.json({ 
         error: 'File too large. Maximum size is 200MB.' 
       }, { status: 413 });
@@ -28,9 +27,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
     }
 
-    console.log('Starting Livepeer direct upload:', { name, assetType });
+    console.log('Starting Livepeer upload with MCP integration:', { name, assetType });
 
-    // Step 1: Upload thumbnail to IPFS (bypasses Livepeer)
+    // Step 1: Upload thumbnail to IPFS
     let thumbnailCid;
     if (thumbnail) {
       const { ipfsClient } = await import('../../../../utils/storage/ipfs-client');
@@ -38,10 +37,9 @@ export async function POST(request: NextRequest) {
         thumbnail,
         `${name}-thumb-${Date.now()}`
       );
-      console.log('Thumbnail uploaded to IPFS:', thumbnailCid);
     }
 
-    // Step 2: Prepare metadata for embedding
+    // Step 2: Prepare metadata
     const metadataPayload = createMetadataPayload(
       name || file.name,
       creatorWallet || '0x860Ec697167Ba865DdE1eC9e172004100613e970',
@@ -52,7 +50,7 @@ export async function POST(request: NextRequest) {
       metadata.isrc
     );
 
-    // Step 3: Pre-process file with metadata (non-breaking)
+    // Step 3: Process file with metadata
     let processedFile = file;
     try {
       const fileBuffer = await file.arrayBuffer();
@@ -61,66 +59,20 @@ export async function POST(request: NextRequest) {
         metadataPayload,
         file.type
       );
-      
-      // Create new file with embedded metadata
       processedFile = new File([new Uint8Array(embeddedBuffer)], file.name, { type: file.type });
-      console.log('Metadata embedded successfully');
     } catch (embedError) {
       console.warn('Metadata embedding failed, using original file:', embedError);
-      // Continue with original file (non-breaking)
     }
 
-    // Step 4: Request upload URL from Livepeer
+    // Step 4: Upload to Livepeer
     const uploadRequest = await requestLivepeerUpload({
       name: name || file.name,
-      enableExport: true // Enable IPFS export
+      enableExport: true
     });
 
-    // Step 5: Upload processed file to Livepeer
     await uploadToLivepeer(uploadRequest.uploadUrl, processedFile);
 
-    // Step 6: Check for existing content groups and manage versions
-    const existingGroups = await enhancedDataManager.searchItems(
-      'content_groups', 
-      name || file.name, 
-      ['title']
-    );
-
-    let contentGroup;
-    let versionNumber = 1;
-    let isNewGroup = true;
-
-    if (existingGroups.length > 0) {
-      const similarGroup = existingGroups.find(group => 
-        group.title.toLowerCase() === (name || file.name).toLowerCase() &&
-        Math.abs((group.duration || 0) - (metadata.duration || 0)) < 10
-      );
-      
-      if (similarGroup) {
-        contentGroup = similarGroup;
-        const existingVersions = await enhancedDataManager.getData('content_versions');
-        const groupVersions = existingVersions.filter(v => v.group_id === similarGroup.id);
-        versionNumber = groupVersions.length + 1;
-        isNewGroup = false;
-        
-        await enhancedDataManager.updateItem('content_groups', similarGroup.id, {
-          total_versions: versionNumber,
-          updated_at: new Date().toISOString()
-        });
-      }
-    }
-
-    if (!contentGroup) {
-      contentGroup = await enhancedDataManager.createItem('content_groups', {
-        title: name || file.name,
-        original_artist: metadata.artist || 'Unknown',
-        genre: category || 'Digital Art',
-        duration: metadata.duration || 180,
-        total_versions: 1
-      });
-    }
-
-    // Step 7: Create asset record with version info
+    // Step 5: Create asset record
     const assetData = await enhancedDataManager.createItem('assets', {
       name: name || file.name,
       creator_wallet: creatorWallet || '0x860Ec697167Ba865DdE1eC9e172004100613e970',
@@ -135,54 +87,120 @@ export async function POST(request: NextRequest) {
       livepeer_asset_id: uploadRequest.assetId,
       livepeer_status: 'processing',
       export_status: 'pending',
-      content_group_id: contentGroup.id,
       metadata: {
         ...metadata,
         description: description,
         upload_method: 'livepeer_direct',
-        original_filename: file.name,
-        version_number: versionNumber,
-        is_new_group: isNewGroup
+        original_filename: file.name
       }
     });
 
-    // Step 8: Create version record
-    const contentVersion = await enhancedDataManager.createItem('content_versions', {
-      group_id: contentGroup.id,
-      asset_id: assetData.id,
-      animator_wallet: creatorWallet || '0x860Ec697167Ba865DdE1eC9e172004100613e970',
-      animator_style: metadata.animator_style || 'standard',
-      version_number: versionNumber,
-      is_official: false, // Becomes true when admin approves
-      quality_score: 0.8
-    });
+    // Step 6: IMMEDIATE MCP INTEGRATION - Trigger comprehensive processing
+    if (process.env.MCP_ENDPOINT && process.env.MCP_AUTH_TOKEN) {
+      try {
+        // Holographic processing for video/mural content
+        if (assetType === 'mural' || assetType === 'holographic' || file.type.startsWith('video/')) {
+          await fetch(`${process.env.MCP_ENDPOINT}/api/mcp/execute`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${process.env.MCP_AUTH_TOKEN}`
+            },
+            body: JSON.stringify({
+              task: 'process_holographic_content',
+              payload: {
+                assetId: assetData.id,
+                livepeerAssetId: uploadRequest.assetId,
+                assetType,
+                asset: assetData,
+                steps: ['layer_separation', 'depth_mapping', 'mural_creation', 'holographic_optimization']
+              }
+            })
+          });
+        }
 
-    console.log('Asset created with Livepeer integration:', assetData.id);
+        // ISRC generation for audio/video
+        if (file.type.startsWith('audio/') || file.type.startsWith('video/')) {
+          await fetch(`${process.env.MCP_ENDPOINT}/api/mcp/execute`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${process.env.MCP_AUTH_TOKEN}`
+            },
+            body: JSON.stringify({
+              task: 'generate_isrc',
+              payload: {
+                assetId: assetData.id,
+                contentType: file.type.startsWith('audio/') ? 'audio' : 'video'
+              }
+            })
+          });
+        }
+
+        // Main processing pipeline
+        await fetch(`${process.env.MCP_ENDPOINT}/api/mcp/execute`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${process.env.MCP_AUTH_TOKEN}`
+          },
+          body: JSON.stringify({
+            task: 'process_upload',
+            payload: {
+              assetId: assetData.id,
+              asset: assetData,
+              assetType,
+              livepeerAssetId: uploadRequest.assetId
+            }
+          })
+        });
+
+        console.log('MCP processing initiated for asset:', assetData.id);
+      } catch (mcpError) {
+        console.warn('MCP processing failed:', mcpError);
+      }
+    }
 
     return NextResponse.json({
       success: true,
       assetId: assetData.id,
       livepeerAssetId: uploadRequest.assetId,
-      contentGroupId: contentGroup.id,
-      versionId: contentVersion.id,
-      versionNumber: versionNumber,
-      isNewGroup: isNewGroup,
-      message: isNewGroup ? 'New content uploaded' : `Version ${versionNumber} uploaded for existing content`,
+      processing_pipeline: getProcessingPipeline(assetType, file.type),
+      message: 'Upload successful - comprehensive processing initiated',
       details: {
         fileSize: `${(file.size / 1024 / 1024).toFixed(1)} MB`,
         mimeType: file.type,
         thumbnailUploaded: !!thumbnailCid,
-        metadataEmbedded: processedFile !== file
+        mcpIntegrated: !!(process.env.MCP_ENDPOINT && process.env.MCP_AUTH_TOKEN)
       }
     });
 
   } catch (error) {
     console.error('Livepeer upload error:', error);
-    
     return NextResponse.json({
       success: false,
       error: 'Upload failed',
       details: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 });
   }
+}
+
+function getProcessingPipeline(assetType: string, mimeType: string): string[] {
+  const pipeline = ['livepeer_processing'];
+  
+  if (assetType === 'mural' || assetType === 'holographic') {
+    pipeline.push('holographic_layer_separation', 'depth_map_generation', 'mural_creation');
+  }
+  
+  if (mimeType.startsWith('video/')) {
+    pipeline.push('holographic_layer_generation', 'quality_analysis');
+  }
+  
+  if (mimeType.startsWith('audio/')) {
+    pipeline.push('isrc_generation', 'audio_analysis');
+  }
+  
+  pipeline.push('ipfs_export', 'metadata_enhancement', 'content_curation');
+  
+  return pipeline;
 }

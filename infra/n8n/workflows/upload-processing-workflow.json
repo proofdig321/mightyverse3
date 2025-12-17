@@ -1,0 +1,159 @@
+{
+  "name": "Upload Processing Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "upload-complete",
+        "responseMode": "responseNode"
+      },
+      "id": "webhook-upload-complete",
+      "name": "Upload Complete Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.assetType}}",
+              "operation": "equal",
+              "value2": "audio"
+            }
+          ]
+        }
+      },
+      "id": "is-audio-content",
+      "name": "Is Audio Content?",
+      "type": "n8n-nodes-base.if",
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.MCP_ENDPOINT}}/api/mcp/execute",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{$env.MCP_AUTH_TOKEN}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "task",
+              "value": "generate_isrc"
+            },
+            {
+              "name": "payload",
+              "value": "={{JSON.stringify({assetId: $json.assetId, contentType: 'audio'})}}"
+            }
+          ]
+        }
+      },
+      "id": "generate-isrc",
+      "name": "Generate ISRC",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [680, 200]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.MCP_ENDPOINT}}/api/mcp/execute",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization", 
+              "value": "Bearer {{$env.MCP_AUTH_TOKEN}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "task",
+              "value": "analyze_content_quality"
+            },
+            {
+              "name": "payload",
+              "value": "={{JSON.stringify({assetId: $json.assetId, asset: $json.asset})}}"
+            }
+          ]
+        }
+      },
+      "id": "analyze-quality",
+      "name": "Analyze Content Quality",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{JSON.stringify({success: true, processed: true})}}"
+      },
+      "id": "respond-success",
+      "name": "Respond Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [1120, 300]
+    }
+  ],
+  "connections": {
+    "Upload Complete Webhook": {
+      "main": [
+        [
+          {
+            "node": "Is Audio Content?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Audio Content?": {
+      "main": [
+        [
+          {
+            "node": "Generate ISRC",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Analyze Content Quality",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate ISRC": {
+      "main": [
+        [
+          {
+            "node": "Analyze Content Quality",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Content Quality": {
+      "main": [
+        [
+          {
+            "node": "Respond Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true
+}

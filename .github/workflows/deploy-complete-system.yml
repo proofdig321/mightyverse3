@@ -1,0 +1,134 @@
+name: Deploy Complete System
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy-web:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: |
+          cd web
+          npm ci
+
+      - name: Build web
+        run: |
+          cd web
+          npm run build
+
+      - name: Deploy to Vercel
+        uses: amondnet/vercel-action@v20
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          vercel-args: '--prod'
+
+  deploy-mcp:
+    runs-on: ubuntu-latest
+    needs: deploy-web
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Deploy MCP to Railway
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          railway login --token $RAILWAY_TOKEN
+          railway up --service mcp-coordinator
+
+      - name: Wait for deployment
+        run: sleep 60
+
+      - name: Run MCP smoke tests
+        env:
+          MCP_URL: ${{ secrets.MCP_URL }}
+          MCP_AUTH_TOKEN: ${{ secrets.MCP_AUTH_TOKEN }}
+        run: |
+          curl -fS "$MCP_URL/api/mcp/health" || exit 1
+          curl -fS "$MCP_URL/api/mcp/status" || exit 1
+
+  deploy-n8n:
+    runs-on: ubuntu-latest
+    needs: deploy-mcp
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build and push n8n image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./infra/n8n
+          push: true
+          tags: ${{ secrets.DOCKER_USERNAME }}/mightyverse-n8n:latest
+
+      - name: Deploy n8n to production
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          PRODUCTION_HOST: ${{ secrets.PRODUCTION_HOST }}
+        run: |
+          echo "$SSH_PRIVATE_KEY" > private_key
+          chmod 600 private_key
+          ssh -i private_key -o StrictHostKeyChecking=no root@$PRODUCTION_HOST << 'EOF'
+            cd /opt/mightyverse
+            docker-compose -f infra/n8n/docker-compose.yml pull
+            docker-compose -f infra/n8n/docker-compose.yml up -d
+          EOF
+
+  start-processing-workers:
+    runs-on: ubuntu-latest
+    needs: [deploy-web, deploy-mcp]
+    steps:
+      - name: Start processing workers
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          PRODUCTION_HOST: ${{ secrets.PRODUCTION_HOST }}
+        run: |
+          echo "$SSH_PRIVATE_KEY" > private_key
+          chmod 600 private_key
+          ssh -i private_key -o StrictHostKeyChecking=no root@$PRODUCTION_HOST << 'EOF'
+            cd /opt/mightyverse
+            pm2 start scripts/processing-worker.js --name "processing-worker"
+            pm2 save
+          EOF
+
+  integration-tests:
+    runs-on: ubuntu-latest
+    needs: [deploy-web, deploy-mcp, start-processing-workers]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run integration tests
+        env:
+          WEB_URL: ${{ secrets.WEB_URL }}
+          MCP_URL: ${{ secrets.MCP_URL }}
+          MCP_AUTH_TOKEN: ${{ secrets.MCP_AUTH_TOKEN }}
+        run: |
+          chmod +x scripts/comprehensive-smoke-test.sh
+          ./scripts/comprehensive-smoke-test.sh

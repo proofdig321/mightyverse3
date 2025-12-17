@@ -457,9 +457,11 @@ async def execute_task(task_data: dict):
     return {"status": "executed", "task": task_data.get("task", "unknown")}
 
 async def process_upload_task(payload):
-    """Process upload completion and trigger agents"""
+    """Process upload completion and trigger comprehensive content pipelines"""
     asset_id = payload.get("assetId")
     asset = payload.get("asset", {})
+    asset_type = asset.get('asset_type', 'unknown')
+    mime_type = asset.get('mime_type', '')
     
     if not asset_id:
         return {"error": "assetId required"}
@@ -478,22 +480,138 @@ async def process_upload_task(payload):
         except Exception as e:
             coordinator.logger.error(f"Workflow state update failed: {e}")
     
-    # Trigger processing based on asset type
+    # Comprehensive processing pipeline based on content type
     processing_tasks = []
     
-    if asset.get('mime_type', '').startswith('video/'):
-        processing_tasks.extend(['livepeer_upload', 'thumbnail_generation'])
-    elif asset.get('mime_type', '').startswith('image/'):
-        processing_tasks.extend(['image_optimization', 'thumbnail_generation'])
+    # Holographic Content Processing
+    if asset_type in ['mural', 'holographic'] or 'holographic' in asset.get('tags', []):
+        processing_tasks.extend([
+            'holographic_layer_separation',
+            'depth_map_generation', 
+            'mural_creation',
+            'animator_version_processing',
+            'card_segmentation',
+            'holographic_optimization'
+        ])
     
-    processing_tasks.append('ipfs_pinning')
+    # Video Content Processing
+    if mime_type.startswith('video/'):
+        processing_tasks.extend([
+            'livepeer_upload',
+            'thumbnail_generation',
+            'video_analysis',
+            'quality_assessment'
+        ])
+        
+        # Add 2.5D processing for video content
+        if asset_type in ['video', 'holographic']:
+            processing_tasks.extend([
+                'holographic_layer_generation',
+                'depth_effect_processing'
+            ])
+    
+    # Audio Content Processing
+    elif mime_type.startswith('audio/'):
+        processing_tasks.extend([
+            'audio_analysis',
+            'isrc_generation',
+            'audio_holographic_effects',
+            'waveform_visualization'
+        ])
+    
+    # Image Content Processing
+    elif mime_type.startswith('image/'):
+        processing_tasks.extend([
+            'image_optimization',
+            'thumbnail_generation',
+            'layer_extraction',
+            'depth_analysis'
+        ])
+    
+    # Universal processing tasks
+    processing_tasks.extend([
+        'ipfs_pinning',
+        'metadata_enhancement',
+        'content_curation',
+        'blockchain_preparation'
+    ])
+    
+    # Queue processing jobs in database
+    if coordinator.db_connection:
+        try:
+            with coordinator.db_connection.cursor() as cursor:
+                for task in processing_tasks:
+                    cursor.execute("""
+                        INSERT INTO processing_jobs (job_type, content_id, content_type, status, input_data)
+                        VALUES (%s, %s, 'asset', 'queued', %s)
+                    """, (
+                        task,
+                        asset_id,
+                        json.dumps({
+                            'asset_type': asset_type,
+                            'mime_type': mime_type,
+                            'processing_priority': get_processing_priority(task),
+                            'estimated_duration': get_task_duration(task)
+                        })
+                    ))
+                coordinator.db_connection.commit()
+        except Exception as e:
+            coordinator.logger.error(f"Failed to queue processing jobs: {e}")
     
     return {
-        "status": "processing_initiated",
+        "status": "comprehensive_processing_initiated",
         "asset_id": asset_id,
+        "asset_type": asset_type,
         "tasks_queued": processing_tasks,
+        "processing_pipeline": get_pipeline_type(asset_type, mime_type),
         "timestamp": datetime.now().isoformat()
     }
+
+def get_processing_priority(task: str) -> int:
+    """Get processing priority for task ordering"""
+    priority_map = {
+        'holographic_layer_separation': 1,
+        'livepeer_upload': 1,
+        'audio_analysis': 1,
+        'depth_map_generation': 2,
+        'isrc_generation': 2,
+        'mural_creation': 3,
+        'holographic_optimization': 4,
+        'ipfs_pinning': 5,
+        'metadata_enhancement': 6,
+        'content_curation': 7,
+        'blockchain_preparation': 8
+    }
+    return priority_map.get(task, 5)
+
+def get_task_duration(task: str) -> int:
+    """Get estimated duration in minutes for task"""
+    duration_map = {
+        'holographic_layer_separation': 15,
+        'depth_map_generation': 10,
+        'mural_creation': 8,
+        'livepeer_upload': 5,
+        'isrc_generation': 1,
+        'audio_analysis': 3,
+        'ipfs_pinning': 2,
+        'metadata_enhancement': 2,
+        'content_curation': 5,
+        'blockchain_preparation': 3
+    }
+    return duration_map.get(task, 5)
+
+def get_pipeline_type(asset_type: str, mime_type: str) -> str:
+    """Determine processing pipeline type"""
+    if asset_type in ['mural', 'holographic']:
+        return 'holographic_mural_pipeline'
+    elif mime_type.startswith('video/'):
+        return 'video_holographic_pipeline'
+    elif mime_type.startswith('audio/'):
+        return 'audio_holographic_pipeline'
+    elif mime_type.startswith('image/'):
+        return 'image_layer_pipeline'
+    else:
+        return 'standard_pipeline'
 
 @app.get("/api/mcp/pipeline/status")
 async def pipeline_status():

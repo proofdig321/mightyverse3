@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useRBAC } from '../../auth/rbac-provider';
 import { dataManager } from '../../../utils/storage/data-store';
 import { ipfsClient } from '../../../utils/storage/ipfs-client';
+import { MCPWebhook } from '../../../utils/integrations/mcp-webhook';
 import NavigationHeader from '../../../components/shared/navigation-header';
 import UploadSuccess from '../../../components/shared/upload-success';
 
@@ -76,6 +77,8 @@ export default function UploadPage() {
     setUploadProgress(0);
 
     try {
+      let assetData;
+
       // Use Livepeer for video/audio, IPFS for other types
       if (form.type === 'audio' || form.type === 'video') {
         // TUS upload to Livepeer for audio
@@ -112,7 +115,7 @@ export default function UploadPage() {
         });
         
         // Create database record
-        await dataManager.addItem('assets', {
+        assetData = await dataManager.addItem('assets', {
           name: form.name,
           description: form.description,
           type: form.type,
@@ -148,7 +151,7 @@ export default function UploadPage() {
           );
         }
         
-        await dataManager.addItem('assets', {
+        assetData = await dataManager.addItem('assets', {
           name: form.name,
           description: form.description,
           type: form.type,
@@ -166,6 +169,9 @@ export default function UploadPage() {
           submittedAt: new Date().toISOString()
         });
       }
+
+      // MCP Integration - Notify coordinator
+      await MCPWebhook.notifyAssetUpload(assetData.id, assetData, form.type);
       
       setUploadProgress(100);
       setUploadedAsset({ name: form.name, type: form.type });

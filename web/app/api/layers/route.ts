@@ -95,22 +95,84 @@ export async function POST(request: NextRequest) {
       }
     });
     
-    // Notify MCP if configured
+    // MCP Integration - FIXED ENDPOINT
     if (process.env.MCP_ENDPOINT && process.env.MCP_AUTH_TOKEN) {
       try {
-        await fetch(process.env.MCP_ENDPOINT, {
+        // Process holographic layers
+        await fetch(`${process.env.MCP_ENDPOINT}/api/mcp/execute`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${process.env.MCP_AUTH_TOKEN}`
           },
           body: JSON.stringify({
-            task: 'process_layer_upload',
-            payload: { muralId: mural.id, cardId: card.id }
+            task: 'process_holographic_content',
+            payload: { 
+              muralId: mural.id, 
+              cardId: card.id,
+              layers: layerCids,
+              assetType: 'holographic_mural'
+            }
           })
         });
+
+        // Generate ISRC for the mural
+        await fetch(`${process.env.MCP_ENDPOINT}/api/mcp/execute`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${process.env.MCP_AUTH_TOKEN}`
+          },
+          body: JSON.stringify({
+            task: 'generate_isrc',
+            payload: { 
+              assetId: mural.id,
+              contentType: 'video' // Murals are video-like content
+            }
+          })
+        });
+
+        // Quality analysis
+        await fetch(`${process.env.MCP_ENDPOINT}/api/mcp/execute`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${process.env.MCP_AUTH_TOKEN}`
+          },
+          body: JSON.stringify({
+            task: 'analyze_content_quality',
+            payload: { 
+              assetId: mural.id,
+              asset: {
+                resolution: '2.5D',
+                duration: sanitizedData.duration,
+                layer_count: Object.keys(layerCids).length
+              }
+            }
+          })
+        });
+        
       } catch (mcpError) {
-        console.warn('MCP notification failed:', mcpError);
+        console.warn('MCP processing failed:', mcpError);
+      }
+    }
+
+    // n8n webhook notification
+    if (process.env.N8N_WEBHOOK_URL) {
+      try {
+        await fetch(process.env.N8N_WEBHOOK_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'holographic_mural_created',
+            muralId: mural.id,
+            cardId: card.id,
+            layers: layerCids,
+            timestamp: new Date().toISOString()
+          })
+        });
+      } catch (n8nError) {
+        console.warn('n8n notification failed:', n8nError);
       }
     }
     
@@ -119,7 +181,7 @@ export async function POST(request: NextRequest) {
       mural,
       card,
       layerCids,
-      message: 'Holographic layers uploaded successfully'
+      message: 'Holographic layers uploaded and processed successfully'
     });
     
   } catch (error) {

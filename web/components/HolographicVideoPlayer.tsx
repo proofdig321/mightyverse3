@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 
 interface HolographicVideoPlayerProps {
+  // IPFS/Direct video
   fileCid?: string;
   thumbnailCid?: string;
   mimeType?: string;
@@ -16,6 +17,29 @@ interface HolographicVideoPlayerProps {
     bitrate?: number;
     label?: string;
   }>;
+  
+  // Livepeer HLS support
+  playbackId?: string;
+  hlsUrl?: string;
+  
+  // Holographic layers support
+  layers?: {
+    background?: string;
+    midground?: string;
+    foreground?: string;
+    depthMapCid?: string;
+  };
+  
+  // Automation callbacks
+  onPlay?: () => void;
+  onPause?: () => void;
+  onTimeUpdate?: (time: number) => void;
+  onEnded?: () => void;
+  
+  // Advanced options
+  autoPlay?: boolean;
+  loop?: boolean;
+  duration?: number;
 }
 
 export default function HolographicVideoPlayer({ 
@@ -25,23 +49,39 @@ export default function HolographicVideoPlayer({
   fileName,
   title,
   className = "w-full aspect-video max-h-[60vh] min-h-[220px]",
-  renditions
+  renditions,
+  playbackId,
+  hlsUrl,
+  layers,
+  onPlay,
+  onPause,
+  onTimeUpdate,
+  onEnded,
+  autoPlay = false,
+  loop = false,
+  duration
 }: HolographicVideoPlayerProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(autoPlay);
+  const [currentTime, setCurrentTime] = useState(0);
   const [holographicIntensity, setHolographicIntensity] = useState(0.7);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const hlsRef = useRef<any>(null);
   const [isSmallScreen, setIsSmallScreen] = useState(false);
   const debug = process.env.NEXT_PUBLIC_DEBUG === 'true';
   const [inView, setInView] = useState(false);
   const [selectedCid, setSelectedCid] = useState<string | undefined>(fileCid);
   const [manualRendition, setManualRendition] = useState<string | undefined>();
   const [showRenditionToggle, setShowRenditionToggle] = useState(false);
+  const [videoSource, setVideoSource] = useState<'ipfs' | 'hls' | 'layers'>('ipfs');
   
   const gateway = process.env.NEXT_PUBLIC_IPFS_GATEWAY || 'https://gateway.pinata.cloud/ipfs/';
   
-  if (!fileCid) {
+  // Determine video source priority: Livepeer HLS > IPFS > Layers
+  const hasVideoSource = playbackId || hlsUrl || fileCid || layers;
+  
+  if (!hasVideoSource) {
     return (
       <div className={`${className} bg-black/50 border border-white/10 rounded-lg flex items-center justify-center`}>
         <div className="text-center">
@@ -52,12 +92,30 @@ export default function HolographicVideoPlayer({
     );
   }
 
-  const fileUrl = `${gateway}${fileCid}`;
-  const thumbnailUrl = thumbnailCid ? `${gateway}${thumbnailCid}` : null;
+  const getVideoUrl = () => {
+    if (playbackId) return `https://lp-playback.com/hls/${playbackId}/index.m3u8`;
+    if (hlsUrl) return hlsUrl;
+    if (selectedCid) return `${gateway}${selectedCid}`;
+    return null;
+  };
   
-  // Debug logging
+  const fileUrl = getVideoUrl();
+  const thumbnailUrl = thumbnailCid ? `${gateway}${thumbnailCid}` : null;
+  const isHLS = playbackId || hlsUrl || fileUrl?.includes('.m3u8');
+  
+  // Determine video source type
   useEffect(() => {
-    // determine small screen to reduce visual complexity
+    if (playbackId || hlsUrl) {
+      setVideoSource('hls');
+    } else if (layers) {
+      setVideoSource('layers');
+    } else {
+      setVideoSource('ipfs');
+    }
+  }, [playbackId, hlsUrl, layers]);
+
+  // Screen size detection
+  useEffect(() => {
     const onResize = () => {
       try {
         setIsSmallScreen(window.innerWidth < 640);
@@ -70,6 +128,57 @@ export default function HolographicVideoPlayer({
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
+
+  // HLS setup for Livepeer
+  useEffect(() => {
+    if (!isHLS || !videoRef.current) return;
+
+    const video = videoRef.current;
+    const setupHLS = async () => {
+      try {
+        // Cleanup previous HLS instance
+        if (hlsRef.current) {
+          hlsRef.current.destroy();
+          hlsRef.current = null;
+        }
+
+        // Native HLS support (Safari/iOS)
+        if (video.canPlayType('application/vnd.apple.mpegurl')) {
+          video.src = fileUrl!;
+          return;
+        }
+
+        // Use HLS.js for other browsers
+        const { default: Hls } = await import('hls.js');
+        if (Hls.isSupported()) {
+          const hls = new Hls({ enableWorker: true, maxBufferLength: 30 });
+          hlsRef.current = hls;
+          hls.loadSource(fileUrl!);
+          hls.attachMedia(video);
+          hls.on(Hls.Events.MANIFEST_PARSED, () => {
+            setLoading(false);
+            if (autoPlay) video.play().catch(console.error);
+          });
+          hls.on(Hls.Events.ERROR, (event, data) => {
+            console.error('HLS error:', event, data);
+            setError(true);
+          });
+        }
+      } catch (error) {
+        console.error('Failed to setup HLS:', error);
+        setError(true);
+      }
+    };
+
+    setupHLS();
+
+    return () => {
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+        hlsRef.current = null;
+      }
+    };
+  }, [isHLS, fileUrl, autoPlay]);
 
   // Select the best CID based on available renditions and screen size
   useEffect(() => {
@@ -125,32 +234,44 @@ export default function HolographicVideoPlayer({
     }
   }, [videoRef]);
 
-  useEffect(() => {
-    if (debug) {
-      // only log in debug mode to avoid noisy production consoles
-      console.log('HolographicVideoPlayer Debug:', {
-        fileCid,
-        fileUrl,
-        mimeType,
-        fileName,
-        gateway
-      });
-    }
-  }, [fileCid, fileUrl, mimeType, fileName, gateway, debug]);
-
+  // Video event handlers
   const handlePlay = () => {
-    if (videoRef.current) {
-      videoRef.current.play();
-      setIsPlaying(true);
-    }
+    setIsPlaying(true);
+    onPlay?.();
   };
 
   const handlePause = () => {
+    setIsPlaying(false);
+    onPause?.();
+  };
+
+  const handleTimeUpdate = () => {
     if (videoRef.current) {
-      videoRef.current.pause();
-      setIsPlaying(false);
+      const time = videoRef.current.currentTime;
+      setCurrentTime(time);
+      onTimeUpdate?.(time);
     }
   };
+
+  const handleEnded = () => {
+    setIsPlaying(false);
+    onEnded?.();
+  };
+
+  // Debug logging
+  useEffect(() => {
+    if (debug) {
+      console.log('HolographicVideoPlayer Debug:', {
+        videoSource,
+        fileCid,
+        playbackId,
+        hlsUrl,
+        layers: layers ? Object.keys(layers) : null,
+        fileUrl,
+        isHLS
+      });
+    }
+  }, [debug, videoSource, fileCid, playbackId, hlsUrl, layers, fileUrl, isHLS]);
 
   if (error) {
     return (
@@ -262,39 +383,104 @@ export default function HolographicVideoPlayer({
           </div>
         )}
 
-        {/* Main Video */}
-        <video
-          ref={videoRef}
-          controls
-          controlsList="nodownload"
-          preload="metadata"
-          crossOrigin="anonymous"
-          playsInline
-          className="w-full h-full object-contain relative z-10"
-          poster={thumbnailUrl || undefined}
-          onLoadStart={() => setLoading(false)}
-          onLoadedData={() => setLoading(false)}
-          onCanPlay={() => setLoading(false)}
-          onError={(e) => {
-            console.error('Video error:', e);
-            console.error('Video URL:', fileUrl);
-            setError(true);
-            setLoading(false);
-          }}
-          onPlay={() => setIsPlaying(true)}
-          onPause={() => setIsPlaying(false)}
-          style={{
-            transform: `translateZ(${holographicIntensity * (isSmallScreen ? 2 : 5)}px)`,
-            filter: `drop-shadow(0 0 ${holographicIntensity * (isSmallScreen ? 8 : 20)}px rgba(212, 175, 55, 0.25))`
-          }}
-        >
-          {/* Attach source only when in view to avoid unnecessary buffering */}
-          {inView && selectedCid && (
-            <source src={`${gateway}${selectedCid}`} type={mimeType || 'video/mp4'} />
-          )}
-          <track kind="captions" />
-          Your browser does not support video playback.
-        </video>
+        {/* Layer-based holographic content */}
+        {videoSource === 'layers' && layers && (
+          <div className="absolute inset-0 z-10">
+            {/* Background Layer */}
+            {layers.background && (
+              <video
+                className="absolute inset-0 w-full h-full object-cover"
+                style={{
+                  transform: `translateZ(${holographicIntensity * -20}px)`,
+                  opacity: 0.8,
+                  filter: `blur(${holographicIntensity * 0.5}px)`
+                }}
+                autoPlay={autoPlay}
+                loop={loop}
+                muted
+                playsInline
+              >
+                <source src={`${gateway}${layers.background}`} type="video/mp4" />
+              </video>
+            )}
+            
+            {/* Midground Layer */}
+            {layers.midground && (
+              <video
+                className="absolute inset-0 w-full h-full object-cover"
+                style={{
+                  transform: `translateZ(${holographicIntensity * 0}px)`,
+                  opacity: 0.9,
+                  mixBlendMode: 'screen'
+                }}
+                autoPlay={autoPlay}
+                loop={loop}
+                muted
+                playsInline
+              >
+                <source src={`${gateway}${layers.midground}`} type="video/mp4" />
+              </video>
+            )}
+            
+            {/* Foreground Layer */}
+            {layers.foreground && (
+              <video
+                className="absolute inset-0 w-full h-full object-cover"
+                style={{
+                  transform: `translateZ(${holographicIntensity * 20}px)`,
+                  opacity: 1,
+                  filter: `drop-shadow(0 0 ${holographicIntensity * 10}px rgba(212, 175, 55, 0.3))`
+                }}
+                autoPlay={autoPlay}
+                loop={loop}
+                muted
+                playsInline
+              >
+                <source src={`${gateway}${layers.foreground}`} type="video/mp4" />
+              </video>
+            )}
+          </div>
+        )}
+
+        {/* Main Video (HLS or IPFS) */}
+        {videoSource !== 'layers' && (
+          <video
+            ref={videoRef}
+            controls
+            controlsList="nodownload"
+            preload="metadata"
+            crossOrigin="anonymous"
+            playsInline
+            autoPlay={autoPlay}
+            loop={loop}
+            className="w-full h-full object-contain relative z-10"
+            poster={thumbnailUrl || undefined}
+            onLoadStart={() => setLoading(false)}
+            onLoadedData={() => setLoading(false)}
+            onCanPlay={() => setLoading(false)}
+            onTimeUpdate={handleTimeUpdate}
+            onPlay={handlePlay}
+            onPause={handlePause}
+            onEnded={handleEnded}
+            onError={(e) => {
+              console.error('Video error:', e);
+              console.error('Video URL:', fileUrl);
+              setError(true);
+              setLoading(false);
+            }}
+            style={{
+              transform: `translateZ(${holographicIntensity * (isSmallScreen ? 2 : 5)}px)`,
+              filter: `drop-shadow(0 0 ${holographicIntensity * (isSmallScreen ? 8 : 20)}px rgba(212, 175, 55, 0.25))`
+            }}
+          >
+            {/* Attach source only when in view and not HLS */}
+            {inView && !isHLS && selectedCid && (
+              <source src={`${gateway}${selectedCid}`} type={mimeType || 'video/mp4'} />
+            )}
+            <track kind="captions" />
+            Your browser does not support video playback.
+          </video>
+        )}
 
         {/* Loading State */}
         {loading && (
@@ -308,6 +494,9 @@ export default function HolographicVideoPlayer({
         <div className="absolute top-4 left-4 flex space-x-2 z-20">
           <div className="bg-black/70 px-2 py-1 rounded text-xs text-green-400 backdrop-blur-sm">
             2.5D HOLOGRAPHIC
+          </div>
+          <div className="bg-black/70 px-2 py-1 rounded text-xs text-blue-400 backdrop-blur-sm">
+            {videoSource === 'hls' ? 'LIVEPEER' : videoSource === 'layers' ? 'LAYERS' : 'IPFS'}
           </div>
           {isPlaying && (
             <div className="bg-black/70 px-2 py-1 rounded text-xs text-yellow-400 backdrop-blur-sm animate-pulse">
@@ -343,7 +532,29 @@ export default function HolographicVideoPlayer({
           <div className="flex justify-center items-center space-x-4 mt-2 text-sm mv-text-muted">
             <span>2.5D Holographic Experience</span>
             <span>•</span>
-            <span>IPFS Stored</span>
+            <span>
+              {videoSource === 'hls' ? 'Livepeer Streaming' : 
+               videoSource === 'layers' ? 'Multi-Layer Composition' : 
+               'IPFS Stored'}
+            </span>
+            {duration && (
+              <>
+                <span>•</span>
+                <span>{Math.floor(duration / 60)}:{(duration % 60).toString().padStart(2, '0')}</span>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Progress indicator for layers */}
+      {videoSource === 'layers' && duration && (
+        <div className="mt-2">
+          <div className="w-full bg-white/10 rounded-full h-1">
+            <div 
+              className="bg-gradient-to-r from-yellow-400 to-green-400 h-1 rounded-full transition-all duration-300"
+              style={{ width: `${(currentTime / duration) * 100}%` }}
+            />
           </div>
         </div>
       )}

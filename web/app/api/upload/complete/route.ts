@@ -45,9 +45,43 @@ export async function POST(request: NextRequest) {
       console.error('Failed to create processing job:', jobError);
     }
 
-    // Notify MCP if configured
+    // MCP Integration - Enhanced processing based on asset type
     if (process.env.MCP_ENDPOINT && process.env.MCP_AUTH_TOKEN) {
       try {
+        // Determine processing tasks based on asset type and mime type
+        const processingTasks = [];
+        
+        // Holographic processing for video/mural content
+        if (asset.asset_type === 'mural' || asset.asset_type === 'holographic' || 
+            asset.mime_type?.startsWith('video/')) {
+          processingTasks.push('generate_holographic_layers', 'create_mural');
+        }
+        
+        // ISRC generation for audio/video
+        if (asset.mime_type?.startsWith('audio/') || asset.mime_type?.startsWith('video/')) {
+          processingTasks.push('generate_isrc');
+        }
+        
+        // Execute MCP tasks
+        for (const task of processingTasks) {
+          await fetch(`${process.env.MCP_ENDPOINT}/api/mcp/execute`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${process.env.MCP_AUTH_TOKEN}`
+            },
+            body: JSON.stringify({
+              task,
+              payload: { 
+                assetId, 
+                asset,
+                contentType: asset.mime_type?.startsWith('audio/') ? 'audio' : 'video'
+              }
+            })
+          });
+        }
+        
+        // Main processing pipeline
         await fetch(`${process.env.MCP_ENDPOINT}/api/mcp/execute`, {
           method: 'POST',
           headers: {
@@ -59,6 +93,7 @@ export async function POST(request: NextRequest) {
             payload: { assetId, asset }
           })
         });
+        
       } catch (mcpError) {
         console.warn('MCP notification failed:', mcpError);
       }
