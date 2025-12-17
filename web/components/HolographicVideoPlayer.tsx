@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
+import { MCPWebhook } from '../utils/integrations/mcp-webhook';
 
 interface HolographicVideoPlayerProps {
   // IPFS/Direct video
@@ -234,15 +235,38 @@ export default function HolographicVideoPlayer({
     }
   }, [videoRef]);
 
+  // MCP Analytics Integration
+  const notifyMCPPlayback = async (event: string, data?: any) => {
+    if (fileCid || playbackId) {
+      try {
+        await MCPWebhook.notifyAssetUpload(
+          fileCid || playbackId || 'unknown',
+          {
+            event,
+            videoSource,
+            currentTime,
+            duration,
+            ...data
+          },
+          'playback_analytics'
+        );
+      } catch (error) {
+        console.warn('MCP playback notification failed:', error);
+      }
+    }
+  };
+
   // Video event handlers
   const handlePlay = () => {
     setIsPlaying(true);
     onPlay?.();
+    notifyMCPPlayback('play', { timestamp: Date.now() });
   };
 
   const handlePause = () => {
     setIsPlaying(false);
     onPause?.();
+    notifyMCPPlayback('pause', { timestamp: Date.now() });
   };
 
   const handleTimeUpdate = () => {
@@ -256,6 +280,11 @@ export default function HolographicVideoPlayer({
   const handleEnded = () => {
     setIsPlaying(false);
     onEnded?.();
+    notifyMCPPlayback('ended', { 
+      timestamp: Date.now(),
+      watchTime: currentTime,
+      completion: duration ? (currentTime / duration) * 100 : 0
+    });
   };
 
   // Debug logging
@@ -497,6 +526,9 @@ export default function HolographicVideoPlayer({
           </div>
           <div className="bg-black/70 px-2 py-1 rounded text-xs text-blue-400 backdrop-blur-sm">
             {videoSource === 'hls' ? 'LIVEPEER' : videoSource === 'layers' ? 'LAYERS' : 'IPFS'}
+          </div>
+          <div className="bg-black/70 px-2 py-1 rounded text-xs text-purple-400 backdrop-blur-sm">
+            MCP
           </div>
           {isPlaying && (
             <div className="bg-black/70 px-2 py-1 rounded text-xs text-yellow-400 backdrop-blur-sm animate-pulse">
