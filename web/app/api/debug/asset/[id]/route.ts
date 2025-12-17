@@ -56,8 +56,8 @@ export async function GET(
         };
       } catch (error) {
         debug.tests[key] = {
-          error: error.message,
-          timeout: error.name === 'AbortError'
+          error: error instanceof Error ? error.message : String(error),
+          timeout: error instanceof Error && error.name === 'AbortError'
         };
       }
     }
