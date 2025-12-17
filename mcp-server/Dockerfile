@@ -11,15 +11,17 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy MCP coordinator
+# Copy MCP coordinator and deployment script
 COPY mcp_coordinator.py .
+COPY railway-deploy.sh .
+RUN chmod +x railway-deploy.sh
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/api/mcp/health || exit 1
+    CMD curl -f http://localhost:${PORT:-8000}/api/mcp/health || exit 1
 
 # Expose port
 EXPOSE 8000
 
-# Start MCP coordinator with uvicorn
-CMD ["uvicorn", "mcp_coordinator:app", "--host", "0.0.0.0", "--port", "8000"]
+# Start MCP coordinator with deployment script
+CMD ["./railway-deploy.sh"]
