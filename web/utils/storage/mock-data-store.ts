@@ -47,7 +47,7 @@ export const mockUsers = [
 ];
 
 export class MockDataManager {
-  private data = {
+  private data: Record<string, any[]> = {
     assets: mockAssets,
     campaigns: mockCampaigns,
     users: mockUsers,
@@ -62,7 +62,7 @@ export class MockDataManager {
   async createItem(table: string, item: any) {
     console.log(`📦 Mock data: creating ${table} item`);
     const newItem = { ...item, id: `mock-${Date.now()}`, created_at: new Date().toISOString() };
-    this.data[table] = this.data[table] || [];
+    if (!this.data[table]) this.data[table] = [];
     this.data[table].push(newItem);
     return newItem;
   }
