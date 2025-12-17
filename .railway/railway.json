@@ -1,0 +1,18 @@
+{
+  "services": {
+    "mcp-server": {
+      "source": {
+        "repo": "proofdig321/mightyverse3",
+        "rootDirectory": "/mcp-server"
+      },
+      "build": {
+        "builder": "dockerfile",
+        "dockerfilePath": "Dockerfile"
+      },
+      "deploy": {
+        "startCommand": "uvicorn mcp_coordinator:app --host 0.0.0.0 --port $PORT",
+        "healthcheckPath": "/api/mcp/health"
+      }
+    }
+  }
+}

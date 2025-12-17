@@ -2,11 +2,14 @@
 builder = "dockerfile"
 dockerfilePath = "mcp-server/Dockerfile"
 buildContext = "mcp-server"
+watchPaths = ["mcp-server/**"]
 
 [deploy]
-startCommand = "uvicorn mcp_coordinator:app --host 0.0.0.0 --port 8000"
+startCommand = "uvicorn mcp_coordinator:app --host 0.0.0.0 --port $PORT"
 healthcheckPath = "/api/mcp/health"
 healthcheckTimeout = 300
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 10
 
 [environments.production.variables]
 MCP_AUTH_TOKEN = "mcp_prod_token_secure"
